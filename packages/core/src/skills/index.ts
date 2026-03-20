@@ -15,3 +15,5 @@ export type { SkillParseResult } from './parser.js'
 export { SkillLoader } from './loader.js'
 
 export { SkillMatcher } from './matcher.js'
+
+export { SkillInjector } from './injector.js'
