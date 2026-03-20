@@ -17,3 +17,5 @@ export { SkillLoader } from './loader.js'
 export { SkillMatcher } from './matcher.js'
 
 export { SkillInjector } from './injector.js'
+
+export { SkillSetLoader } from './skillset-loader.js'
