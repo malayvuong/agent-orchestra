@@ -2,7 +2,12 @@ import { readdir, readFile, stat, access } from 'node:fs/promises'
 import { join, basename } from 'node:path'
 import { homedir } from 'node:os'
 import { constants } from 'node:fs'
-import type { SkillDefinition, SkillLoadResult, SkillParseError } from './types.js'
+import type {
+  SkillDefinition,
+  SkillLoadResult,
+  SkillParseError,
+  ChecksumVerifier,
+} from './types.js'
 import type { SkillParser } from './parser.js'
 import type { SkillParseResult } from './parser.js'
 
@@ -27,6 +32,7 @@ export class SkillLoader {
   constructor(
     private parser: SkillParser,
     private logger?: Logger,
+    private checksumVerifier?: ChecksumVerifier,
   ) {}
 
   /**
@@ -91,14 +97,60 @@ export class SkillLoader {
       }
     }
 
-    const skills = Array.from(skillMap.values()).map((entry) => entry.skill)
+    let skills = Array.from(skillMap.values()).map((entry) => entry.skill)
+
+    // Phase B — Task B.3: Checksum verification at load time
+    const checksumFailures: { skillId: string; expected: string; actual: string }[] = []
+    if (this.checksumVerifier) {
+      const verified: SkillDefinition[] = []
+      for (const skill of skills) {
+        const expected = await this.checksumVerifier.getExpectedChecksum(skill.id)
+        if (!expected) {
+          // Not in lockfile — skill is not installed via registry, allow it
+          verified.push(skill)
+          continue
+        }
+
+        try {
+          if (skill.source.type !== 'local') {
+            // Only local sources can be checksum-verified at load time
+            verified.push(skill)
+            continue
+          }
+          const skillDir = skill.source.path.replace(/\/SKILL\.md$/, '')
+          const actual = await this.checksumVerifier.computeChecksum(skillDir)
+
+          if (actual.digest === expected.digest) {
+            verified.push(skill)
+          } else {
+            checksumFailures.push({
+              skillId: skill.id,
+              expected: expected.digest,
+              actual: actual.digest,
+            })
+            this.logger?.error(
+              `Checksum mismatch for skill "${skill.id}": expected ${expected.digest.slice(0, 12)}..., got ${actual.digest.slice(0, 12)}...`,
+            )
+          }
+        } catch (err) {
+          // If we can't compute checksum, allow the skill but warn
+          this.logger?.warn(`Could not verify checksum for skill "${skill.id}": ${String(err)}`)
+          verified.push(skill)
+        }
+      }
+      skills = verified
+    }
 
     // Populate the cache
     for (const skill of skills) {
       this.cache.set(skill.id, skill)
     }
 
-    return { skills, errors }
+    return {
+      skills,
+      errors,
+      checksumFailures: checksumFailures.length > 0 ? checksumFailures : undefined,
+    }
   }
 
   /**
@@ -124,6 +176,23 @@ export class SkillLoader {
         path: skillFilePath,
         message,
       }
+    }
+
+    // Check file size before reading — reject files over 1MB to prevent memory issues
+    const MAX_SKILL_FILE_SIZE = 1_048_576 // 1MB
+    try {
+      const fileStat = await stat(skillFilePath)
+      if (fileStat.size > MAX_SKILL_FILE_SIZE) {
+        const message = `SKILL.md at "${skillFilePath}" is ${(fileStat.size / 1024).toFixed(0)}KB — exceeds 1MB limit`
+        this.logger?.warn(message)
+        return {
+          type: 'parse_error',
+          path: skillFilePath,
+          message,
+        }
+      }
+    } catch {
+      // stat failure is handled below by readFile
     }
 
     let rawContent: string

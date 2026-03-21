@@ -1,0 +1,37 @@
+{
+  "name": "@agent-orchestra/registry",
+  "version": "0.0.1",
+  "description": "Skill registry, lockfile, and installation management for Agent Orchestra",
+  "license": "MIT",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nicemvp/agent-orchestra.git",
+    "directory": "packages/registry"
+  },
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "pnpm run build"
+  },
+  "dependencies": {
+    "@agent-orchestra/core": "workspace:*",
+    "@agent-orchestra/shared": "workspace:*",
+    "yaml": "^2.8.2"
+  }
+}

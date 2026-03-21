@@ -1,5 +1,7 @@
 import { Command } from 'commander'
 import { registerSkillsCommand } from './commands/skills.js'
+import { registerAuditCommand } from './commands/audit.js'
+import { registerPolicyCommand } from './commands/policy.js'
 
 export function createProgram(): Command {
   const program = new Command()
@@ -8,6 +10,8 @@ export function createProgram(): Command {
     .version('0.0.1')
 
   registerSkillsCommand(program)
+  registerAuditCommand(program)
+  registerPolicyCommand(program)
 
   return program
 }

@@ -53,6 +53,9 @@ importers:
       '@agent-orchestra/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@agent-orchestra/registry':
+        specifier: workspace:*
+        version: link:../../packages/registry
       '@agent-orchestra/shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -71,6 +74,18 @@ importers:
 
   packages/core:
     dependencies:
+      '@agent-orchestra/shared':
+        specifier: workspace:*
+        version: link:../shared
+      yaml:
+        specifier: ^2.8.2
+        version: 2.8.2
+
+  packages/registry:
+    dependencies:
+      '@agent-orchestra/core':
+        specifier: workspace:*
+        version: link:../core
       '@agent-orchestra/shared':
         specifier: workspace:*
         version: link:../shared

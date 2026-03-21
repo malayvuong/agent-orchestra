@@ -1,6 +1,8 @@
 {
   "name": "@agent-orchestra/shared",
   "version": "0.0.1",
+  "description": "Shared constants, errors, and utilities for Agent Orchestra",
+  "license": "MIT",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -10,8 +12,26 @@
       "types": "./dist/index.d.ts"
     }
   },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nicemvp/agent-orchestra.git",
+    "directory": "packages/shared"
+  },
+  "keywords": [
+    "agent",
+    "orchestration",
+    "shared"
+  ],
   "scripts": {
     "build": "tsup",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "pnpm run build"
   }
 }

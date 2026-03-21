@@ -483,6 +483,111 @@ describe('SkillLoader — logger behavior', () => {
 })
 
 // ---------------------------------------------------------------------------
+// SkillLoader — checksum verification at load time (Phase B — Task B.3)
+// ---------------------------------------------------------------------------
+
+describe('SkillLoader — checksum verification', () => {
+  it('rejects skills with checksum mismatch', async () => {
+    const skillsBase = join(tmpDir, '.agent-orchestra', 'skills')
+    await createSkillDir(skillsBase, 'tampered-skill', minimalSkillMd('Tampered'))
+
+    const errorCalls: string[] = []
+    const logger = {
+      warn: vi.fn(),
+      error: (msg: string) => errorCalls.push(msg),
+    }
+
+    const verifier = {
+      getExpectedChecksum: async (id: string) =>
+        id === 'tampered-skill'
+          ? { algorithm: 'sha256' as const, digest: 'expected-digest-abc' }
+          : null,
+      computeChecksum: async () => ({ algorithm: 'sha256' as const, digest: 'actual-digest-xyz' }),
+    }
+
+    const loader = new SkillLoader(makeParser(), logger, verifier)
+    const result = await loader.loadFromWorkspace(tmpDir)
+
+    expect(result.skills).toHaveLength(0)
+    expect(result.checksumFailures).toBeDefined()
+    expect(result.checksumFailures).toHaveLength(1)
+    expect(result.checksumFailures![0].skillId).toBe('tampered-skill')
+    expect(result.checksumFailures![0].expected).toBe('expected-digest-abc')
+    expect(result.checksumFailures![0].actual).toBe('actual-digest-xyz')
+    expect(errorCalls.some((m) => m.includes('Checksum mismatch'))).toBe(true)
+  })
+
+  it('allows skills with matching checksum', async () => {
+    const skillsBase = join(tmpDir, '.agent-orchestra', 'skills')
+    await createSkillDir(skillsBase, 'valid-skill', minimalSkillMd('Valid'))
+
+    const verifier = {
+      getExpectedChecksum: async (id: string) =>
+        id === 'valid-skill' ? { algorithm: 'sha256' as const, digest: 'matching-digest' } : null,
+      computeChecksum: async () => ({ algorithm: 'sha256' as const, digest: 'matching-digest' }),
+    }
+
+    const loader = new SkillLoader(makeParser(), undefined, verifier)
+    const result = await loader.loadFromWorkspace(tmpDir)
+
+    expect(result.skills).toHaveLength(1)
+    expect(result.skills[0].id).toBe('valid-skill')
+    expect(result.checksumFailures).toBeUndefined()
+  })
+
+  it('allows skills not in lockfile (no expected checksum)', async () => {
+    const skillsBase = join(tmpDir, '.agent-orchestra', 'skills')
+    await createSkillDir(skillsBase, 'unlocked-skill', minimalSkillMd('Unlocked'))
+
+    const verifier = {
+      getExpectedChecksum: async () => null,
+      computeChecksum: async () => ({ algorithm: 'sha256' as const, digest: 'any' }),
+    }
+
+    const loader = new SkillLoader(makeParser(), undefined, verifier)
+    const result = await loader.loadFromWorkspace(tmpDir)
+
+    expect(result.skills).toHaveLength(1)
+    expect(result.skills[0].id).toBe('unlocked-skill')
+  })
+
+  it('allows skills when checksum computation fails (warns)', async () => {
+    const skillsBase = join(tmpDir, '.agent-orchestra', 'skills')
+    await createSkillDir(skillsBase, 'error-skill', minimalSkillMd('Error'))
+
+    const warnCalls: string[] = []
+    const logger = {
+      warn: (msg: string) => warnCalls.push(msg),
+      error: vi.fn(),
+    }
+
+    const verifier = {
+      getExpectedChecksum: async () => ({ algorithm: 'sha256' as const, digest: 'expected' }),
+      computeChecksum: async () => {
+        throw new Error('disk failure')
+      },
+    }
+
+    const loader = new SkillLoader(makeParser(), logger, verifier)
+    const result = await loader.loadFromWorkspace(tmpDir)
+
+    expect(result.skills).toHaveLength(1)
+    expect(warnCalls.some((m) => m.includes('Could not verify checksum'))).toBe(true)
+  })
+
+  it('skips checksum verification when no verifier is provided', async () => {
+    const skillsBase = join(tmpDir, '.agent-orchestra', 'skills')
+    await createSkillDir(skillsBase, 'no-verifier', minimalSkillMd('NoVerifier'))
+
+    const loader = new SkillLoader(makeParser())
+    const result = await loader.loadFromWorkspace(tmpDir)
+
+    expect(result.skills).toHaveLength(1)
+    expect(result.checksumFailures).toBeUndefined()
+  })
+})
+
+// ---------------------------------------------------------------------------
 // Internal helper — isParseError
 // ---------------------------------------------------------------------------
 

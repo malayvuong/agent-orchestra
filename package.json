@@ -1,6 +1,7 @@
 {
   "name": "agent-orchestra",
   "private": true,
+  "license": "MIT",
   "type": "module",
   "packageManager": "pnpm@9.15.4",
   "engines": {

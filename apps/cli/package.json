@@ -1,17 +1,40 @@
 {
   "name": "@agent-orchestra/cli",
   "version": "0.0.1",
+  "description": "CLI for Agent Orchestra — AI agent orchestration with skills/skillset system",
+  "license": "MIT",
   "type": "module",
   "bin": {
     "agent-orchestra": "./dist/index.js"
   },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nicemvp/agent-orchestra.git",
+    "directory": "apps/cli"
+  },
+  "keywords": [
+    "agent",
+    "orchestration",
+    "code-review",
+    "skills",
+    "cli",
+    "ai"
+  ],
   "scripts": {
     "dev": "tsx src/index.ts",
     "build": "tsup",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "pnpm run build"
   },
   "dependencies": {
     "@agent-orchestra/core": "workspace:*",
+    "@agent-orchestra/registry": "workspace:*",
     "@agent-orchestra/shared": "workspace:*",
     "commander": "^13.1.0"
   }

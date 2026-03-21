@@ -1,6 +1,7 @@
 import type { Finding } from './finding.js'
+import type { ToolCall, SkillArtifact } from '../skills/executor/types.js'
 
-/** Spec v1.3 §4.10 */
+/** Spec v1.3 §4.10 — extended in Phase C with toolCalls and skillArtifacts */
 export type AgentOutput = {
   rawText: string
   structuredSections: Record<string, string>
@@ -12,7 +13,13 @@ export type AgentOutput = {
     cost?: number
     latencyMs?: number
   }
+  /** Phase C: parsed tool calls from model output */
+  toolCalls?: ToolCall[]
+  /** Phase C: results from skill execution */
+  skillArtifacts?: SkillArtifact[]
 }
+
+export type { ToolCall, SkillArtifact }
 
 /** Spec v1.3 §4.11 */
 export type ProviderOutput = {

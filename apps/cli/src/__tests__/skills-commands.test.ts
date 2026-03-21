@@ -405,6 +405,6 @@ describe('skills validate command', () => {
 
     restore()
 
-    expect(output.join('\n')).toContain('not yet implemented')
+    expect(output.join('\n')).toContain('Not yet implemented')
   })
 })

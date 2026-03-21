@@ -12,7 +12,7 @@ const DEFAULT_SKILL_BUDGET_PERCENT = 20
 
 /**
  * Assembles AgentContext for a given agent and job.
- * Spec v1.3 §35.3 — must call ContextBudgetManager.fitToLimit() before returning.
+ * Spec v1.3 §20.2 — must call ContextBudgetManager.fitToLimit() before returning.
  *
  * Task 1.5: Now skill-aware — matches skills for the agent and injects skill
  * context using SkillInjector with progressive disclosure.
@@ -54,6 +54,7 @@ export class ContextBuilder {
     if (options?.skills && options.skills.length > 0) {
       const matchResult = this.skillMatcher.match(options.skills, agent, {
         jobBrief: job.brief,
+        primaryTargets: job.scope.primaryTargets,
         lifecyclePoint: options.lifecyclePoint,
       })
 

@@ -1,6 +1,8 @@
 {
   "name": "@agent-orchestra/core",
   "version": "0.0.1",
+  "description": "Core engine for Agent Orchestra — types, skill system, context builder",
+  "license": "MIT",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -10,9 +12,30 @@
       "types": "./dist/index.d.ts"
     }
   },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nicemvp/agent-orchestra.git",
+    "directory": "packages/core"
+  },
+  "keywords": [
+    "agent",
+    "orchestration",
+    "code-review",
+    "skills",
+    "ai",
+    "llm"
+  ],
   "scripts": {
     "build": "tsup",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "pnpm run build"
   },
   "dependencies": {
     "@agent-orchestra/shared": "workspace:*",

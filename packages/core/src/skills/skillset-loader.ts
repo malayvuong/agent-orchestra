@@ -139,6 +139,26 @@ export class SkillSetLoader {
     }
   }
 
+  /**
+   * Warn if the combined budget of all skillsets assigned to agents in a job
+   * exceeds 50% of total context. Task 1.6.4.
+   */
+  warnIfBudgetExcessive(assignedSkillSetIds: string[], skillSets: SkillSet[]): void {
+    let totalBudget = 0
+    for (const id of assignedSkillSetIds) {
+      const ss = skillSets.find((s) => s.id === id)
+      if (ss) {
+        totalBudget += ss.contextBudgetPercent
+      }
+    }
+    if (totalBudget > 50) {
+      this.logger?.warn(
+        `Aggregate skill budget across assigned skillsets is ${totalBudget}% (> 50% of context). ` +
+          `This may leave insufficient context for agent instructions, findings, and round data.`,
+      )
+    }
+  }
+
   // ---------------------------------------------------------------------------
   // Private helpers
   // ---------------------------------------------------------------------------

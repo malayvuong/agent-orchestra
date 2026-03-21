@@ -42,7 +42,7 @@ export class SkillInjector {
     }
 
     return {
-      skillContext: parts.join('\n\n'),
+      skillContext: parts.join('\n\n---\n\n'),
       injectedIds,
       usedTokens,
     }

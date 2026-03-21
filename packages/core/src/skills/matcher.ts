@@ -33,7 +33,7 @@ export class SkillMatcher {
   match(
     skills: SkillDefinition[],
     agent: AgentAssignment,
-    context: { jobBrief: string; lifecyclePoint?: string },
+    context: { jobBrief: string; primaryTargets?: string[]; lifecyclePoint?: string },
   ): SkillMatchResult {
     if (skills.length === 0) {
       return { matched: [], reason: new Map() }
@@ -86,10 +86,13 @@ export class SkillMatcher {
         }
       }
 
-      // 3. Keyword match
+      // 3. Keyword match — check against both jobBrief and primaryTargets
       if (triggers?.keywords && triggers.keywords.length > 0) {
+        const searchText = context.primaryTargets
+          ? `${context.jobBrief} ${context.primaryTargets.join(' ')}`
+          : context.jobBrief
         for (const keyword of triggers.keywords) {
-          if (this.matchKeyword(keyword, context.jobBrief)) {
+          if (this.matchKeyword(keyword, searchText)) {
             if (PRIORITY_KEYWORD < bestPriority) {
               bestPriority = PRIORITY_KEYWORD
               bestReason = `keyword:${keyword.toLowerCase()}`
