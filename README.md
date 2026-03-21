@@ -9,6 +9,7 @@ Agent Orchestra is an AI agent orchestration platform for multi-agent code revie
 
 ## Features
 
+- **Skills system** -- prompt injection with progressive disclosure and context budget management. Skills are automatically discovered, matched by trigger conditions, and injected into agent context with token-aware truncation.
 - **CLI-first workflow** -- manage, inspect, and simulate skill matching from the terminal.
 - **Agent Skills standard compatible** -- skills are portable `SKILL.md` files that any compatible tool can consume.
 - **Context budget management** -- token estimation and progressive disclosure ensure skills fit within model context limits without mid-sentence truncation.
