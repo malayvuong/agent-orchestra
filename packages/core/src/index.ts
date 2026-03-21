@@ -1,4 +1,8 @@
 export * from './types/index.js'
 export * from './interfaces/index.js'
 export * from './skills/index.js'
+export * from './storage/index.js'
+export * from './events/index.js'
+export * from './templates/index.js'
 export { ContextBuilder } from './context/context-builder.js'
+export { DefaultOutputNormalizer, parseFindingsFromMarkdown } from './output/index.js'
