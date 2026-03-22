@@ -75,8 +75,8 @@ describe('SandboxRunner.run', () => {
 
     expect(args).toContain('--cap-drop=ALL')
     expect(args).toContain('--read-only')
-    expect(args).toContain('--no-new-privileges')
     expect(args).toContain('--security-opt=no-new-privileges:true')
+    expect(args).not.toContain('--no-new-privileges')
     expect(args).toContain('--pids-limit=100')
     expect(args).toContain('--tmpfs=/tmp:rw,size=64m')
     expect(args).toContain(`--memory=${testConfig.memoryLimitMb}m`)

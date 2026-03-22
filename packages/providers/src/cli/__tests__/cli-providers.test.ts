@@ -1,4 +1,7 @@
 import { describe, it, expect } from 'vitest'
+import { chmod, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { join } from 'node:path'
+import { tmpdir } from 'node:os'
 import { ClaudeCliProvider } from '../claude-cli.js'
 import { CodexCliProvider } from '../codex-cli.js'
 import { detectCliProviders, isCommandAvailable } from '../detect.js'
@@ -192,6 +195,33 @@ describe('ClaudeCliProvider — echo integration', () => {
     expect(result.rawText).toBeTruthy()
     expect(result.exitCode).toBe(0)
     expect(result.usage?.latencyMs).toBeGreaterThanOrEqual(0)
+  })
+
+  it('does not surface EPIPE when the child closes stdin early', async () => {
+    const scriptDir = await mkdtemp(join(tmpdir(), 'ao-claude-cli-test-'))
+    const scriptPath = join(scriptDir, 'close-stdin.sh')
+
+    try {
+      await writeFile(
+        scriptPath,
+        ['#!/bin/sh', 'exec 0<&-', 'sleep 0.1', 'exit 0', ''].join('\n'),
+        'utf-8',
+      )
+      await chmod(scriptPath, 0o755)
+
+      const provider = new ClaudeCliProvider({ command: scriptPath })
+      const largePrompt = 'x'.repeat(2_000_000)
+      const result = await provider.run({
+        systemPrompt: largePrompt,
+        userPrompt: largePrompt,
+        model: 'test',
+      })
+
+      expect(result.rawText).toBe('')
+      expect(result.exitCode).toBe(0)
+    } finally {
+      await rm(scriptDir, { recursive: true, force: true })
+    }
   })
 })
 

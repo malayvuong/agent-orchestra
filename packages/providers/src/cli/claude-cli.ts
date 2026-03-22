@@ -50,14 +50,41 @@ export class ClaudeCliProvider implements AgentProvider {
     }
 
     return new Promise<ProviderOutput>((resolve, reject) => {
+      let settled = false
+      const resolveOnce = (value: ProviderOutput) => {
+        if (settled) return
+        settled = true
+        resolve(value)
+      }
+      const rejectOnce = (error: ProviderError) => {
+        if (settled) return
+        settled = true
+        reject(error)
+      }
+
       const child = spawn(this.command, args, {
         stdio: ['pipe', 'pipe', 'pipe'],
         timeout: timeoutMs,
       })
 
+      child.stdin.on('error', (err) => {
+        const code = (err as NodeJS.ErrnoException).code
+        if (code === 'EPIPE' || code === 'ERR_STREAM_DESTROYED') {
+          return
+        }
+
+        rejectOnce(
+          new ProviderError(
+            `Claude CLI stdin error: ${err.message}`,
+            'server_error',
+            undefined,
+            true,
+          ),
+        )
+      })
+
       // Write prompt to stdin
-      child.stdin.write(combinedPrompt)
-      child.stdin.end()
+      child.stdin.end(combinedPrompt)
 
       let stdout = ''
       let stderr = ''
@@ -87,14 +114,14 @@ export class ClaudeCliProvider implements AgentProvider {
 
       child.on('error', (err) => {
         if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
-          reject(
+          rejectOnce(
             new ProviderError(
               `Claude CLI not found. Install it from https://claude.ai/download or check your PATH.`,
               'auth_error',
             ),
           )
         } else {
-          reject(
+          rejectOnce(
             new ProviderError(`Claude CLI error: ${err.message}`, 'server_error', undefined, true),
           )
         }
@@ -110,7 +137,7 @@ export class ClaudeCliProvider implements AgentProvider {
             stderr.includes('login') ||
             stderr.includes('not logged in')
           ) {
-            reject(
+            rejectOnce(
               new ProviderError(
                 `Claude CLI authentication failed. Run 'claude login' first. stderr: ${stderr.slice(0, 300)}`,
                 'auth_error',
@@ -120,7 +147,7 @@ export class ClaudeCliProvider implements AgentProvider {
           }
 
           if (code === null) {
-            reject(
+            rejectOnce(
               new ProviderError(
                 `Claude CLI timed out after ${timeoutMs}ms`,
                 'timeout',
@@ -131,7 +158,7 @@ export class ClaudeCliProvider implements AgentProvider {
             return
           }
 
-          reject(
+          rejectOnce(
             new ProviderError(
               `Claude CLI exited with code ${code}. stderr: ${stderr.slice(0, 500)}`,
               'server_error',
@@ -149,7 +176,7 @@ export class ClaudeCliProvider implements AgentProvider {
           if (filtered) warnings.push(filtered.slice(0, 300))
         }
 
-        resolve({
+        resolveOnce({
           rawText: stdout.trim(),
           warnings: warnings.length > 0 ? warnings : undefined,
           usage: {

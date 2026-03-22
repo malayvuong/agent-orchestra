@@ -6,7 +6,7 @@
  * - Read-only root filesystem (--read-only)
  * - Memory and CPU limits
  * - PID limit (--pids-limit=100)
- * - No privilege escalation (--no-new-privileges)
+ * - No privilege escalation (--security-opt=no-new-privileges:true)
  * - Network isolation (none or restricted)
  * - Writable /tmp (tmpfs, 64 MB max)
  * - Writable /output for artifact collection
@@ -226,7 +226,6 @@ export class SandboxRunner {
       '--pids-limit=100',
       '--read-only',
       '--tmpfs=/tmp:rw,size=64m',
-      '--no-new-privileges',
       '--cap-drop=ALL',
       '--security-opt=no-new-privileges:true',
     ]
