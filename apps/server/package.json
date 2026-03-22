@@ -1,9 +1,12 @@
 {
   "name": "@agent-orchestra/server",
   "version": "0.0.1",
+  "description": "Agent Orchestra server — API and web dashboard",
+  "license": "MIT",
   "type": "module",
   "scripts": {
-    "build": "echo 'Server build — not yet configured'",
+    "dev": "tsx --watch src/index.ts",
+    "build": "tsup",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

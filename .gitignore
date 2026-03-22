@@ -46,3 +46,6 @@ pids
 .vscode/
 *.swp
 *.swo
+.agent-orchestra
+.DS_Store
+tmp-demo

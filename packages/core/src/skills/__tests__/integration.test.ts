@@ -65,6 +65,17 @@ function makeJob(overrides: Partial<Job> = {}): Job {
       outOfScopeHandling: 'ignore',
       allowDebateExpansion: false,
     },
+    targetResolution: {
+      entryTarget: '/tmp/workspace/src',
+      entryKind: 'directory',
+      resolvedFiles: ['src/'],
+      discovery: [
+        {
+          path: '/tmp/workspace/src',
+          reason: 'directory_walk',
+        },
+      ],
+    },
     decisionLog: {
       lockedConstraints: [],
       acceptedDecisions: [],

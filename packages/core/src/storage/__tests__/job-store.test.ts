@@ -22,6 +22,30 @@ describe('FileJobStore', () => {
       outOfScopeHandling: 'ignore',
       allowDebateExpansion: false,
     },
+    targetResolution: {
+      entryTarget: '/tmp/workspace/src/storage',
+      entryKind: 'directory',
+      workspaceRoot: '/tmp/workspace',
+      resolvedFiles: ['src/storage/job-store.ts'],
+      discovery: [
+        {
+          path: '/tmp/workspace/src/storage/job-store.ts',
+          reason: 'directory_walk',
+        },
+      ],
+    },
+    baselineSnapshot: {
+      fingerprint: 'baseline-fingerprint-1',
+      capturedAt: '2026-03-22T00:00:00Z',
+      files: [
+        {
+          path: '/tmp/workspace/src/storage/job-store.ts',
+          relativePath: 'src/storage/job-store.ts',
+          content: 'export const x = 1\n',
+          sha256: 'sha-1',
+        },
+      ],
+    },
     decisionLog: {
       lockedConstraints: [],
       acceptedDecisions: [],
@@ -57,6 +81,8 @@ describe('FileJobStore', () => {
     expect(job.createdAt).toBeDefined()
     expect(job.updatedAt).toBeDefined()
     expect(job.title).toBe('Test Job')
+    expect(job.targetResolution.entryKind).toBe('directory')
+    expect(job.baselineSnapshot?.fingerprint).toBe('baseline-fingerprint-1')
   })
 
   it('should load a previously created job', async () => {

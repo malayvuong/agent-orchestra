@@ -67,15 +67,18 @@ gantt
 
 ## Work Packages
 
-| Phase | File | Duration | Team | Exit Criteria |
-|-------|------|----------|------|---------------|
-| [0: Bootstrap](phase-0-bootstrap.md) | `phase-0-bootstrap.md` | 1 week | 1.0 Backend | Monorepo builds, core types compile, CLI shell runs |
-| [A: Prompt Skills](phase-a-prompt-skills.md) | `phase-a-prompt-skills.md` | 4 weeks | 1.0 Backend | 5 real skills working, format frozen |
-| [B: Local Registry](phase-b-local-registry.md) | `phase-b-local-registry.md` | 2 weeks | 1.0 Backend | `skills install ./path` + lockfile works |
-| [C: Read-only Tools](phase-c-readonly-tools.md) | `phase-c-readonly-tools.md` | 3 weeks | 1.0 Backend + 0.5 Platform | 1 real tool skill via MCP |
-| [D: Permissioning](phase-d-permissioning.md) | `phase-d-permissioning.md` | 3.5 weeks | 1.0 Backend + 1.0 Platform + 0.25 UX | Policy engine + approval UX + SSRF tests pass |
-| [E: Marketplace](phase-e-remote-marketplace.md) | `phase-e-remote-marketplace.md` | 3 weeks | 1.0 Backend + 0.25 Writer | 10+ skills in registry, remote install works |
-| [F: Sandbox](phase-f-sandbox-signing.md) | `phase-f-sandbox-signing.md` | 5 weeks | 1.0 Platform + 0.5 SecEng | Escape tests pass, signing works |
+| Phase | File | Status | Tests |
+|-------|------|--------|-------|
+| [0: Bootstrap](phase-0-bootstrap.md) | `phase-0-bootstrap.md` | **Done** | — |
+| [A: Prompt Skills](phase-a-prompt-skills.md) | `phase-a-prompt-skills.md` | **Done** | 216 |
+| [B: Local Registry](phase-b-local-registry.md) | `phase-b-local-registry.md` | **Done** | +28 |
+| [C: Read-only Tools](phase-c-readonly-tools.md) | `phase-c-readonly-tools.md` | **Done** | +43 |
+| [D: Permissioning](phase-d-permissioning.md) | `phase-d-permissioning.md` | **Done** | +105 |
+| [E: Marketplace](phase-e-remote-marketplace.md) | `phase-e-remote-marketplace.md` | **Done** | +62 |
+| [F: Sandbox](phase-f-sandbox-signing.md) | `phase-f-sandbox-signing.md` | **Done** | +48 |
+| [Core Engine](core-engine.md) | `core-engine.md` | **Done** | +121 |
+
+**Total: 623 tests passing, 9 skipped (Docker-only)**
 
 ## Dependency Graph
 

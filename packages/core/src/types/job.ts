@@ -26,6 +26,31 @@ export type JobScope = {
   allowDebateExpansion: false
 }
 
+export type TargetResolutionRecord = {
+  entryTarget: string
+  entryKind: 'file' | 'directory'
+  workspaceRoot?: string
+  resolvedFiles: string[]
+  discovery: Array<{
+    path: string
+    reason: 'entry' | 'directory_walk' | 'markdown_link'
+    discoveredFrom?: string
+  }>
+}
+
+export type BaselineFileSnapshot = {
+  path: string
+  relativePath: string
+  content: string
+  sha256: string
+}
+
+export type BaselineSnapshotRecord = {
+  fingerprint: string
+  capturedAt: string
+  files: BaselineFileSnapshot[]
+}
+
 /** Spec v1.3 §4.15 */
 export type AwaitingDecisionReason = 'final_review' | 'pause_point' | 'manual_intervention'
 
@@ -42,6 +67,12 @@ export type JobRuntimeConfig = {
 
   /** Percentage of context budget allocated to skills (0-100, default: 20) (Task 1.1) */
   skillBudgetPercent?: number
+
+  /** Max iterative debate rounds. Default 1 (legacy). Cap: 2^(agentCount+1). */
+  maxDebateRounds?: number
+
+  /** Auto-apply confirmed findings to original files. Default: false. */
+  autoApply?: boolean
 }
 
 /** Spec v1.3 §9.3 */
@@ -64,6 +95,8 @@ export type Job = {
   protocol: Protocol
 
   scope: JobScope
+  targetResolution: TargetResolutionRecord
+  baselineSnapshot?: BaselineSnapshotRecord
   decisionLog: DecisionLog
 
   agents: AgentAssignment[]

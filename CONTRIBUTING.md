@@ -10,16 +10,32 @@ Thank you for your interest in contributing! This guide will help you get starte
 ## Setup
 
 ```bash
-git clone https://github.com/your-org/agent-orchestra.git
+git clone https://github.com/nicemvp/agent-orchestra.git
 cd agent-orchestra
 pnpm install
 pnpm build
 ```
 
+## Running Locally
+
+```bash
+pnpm dev                          # CLI help
+pnpm dev -- skills list           # Run CLI commands
+pnpm dev -- run --target file.ts  # Run a code review (needs OPENAI_API_KEY)
+pnpm dev:server                   # Start API server on :3100
+```
+
+To install the `agent-orchestra` command globally:
+
+```bash
+cd apps/cli && pnpm link --global
+agent-orchestra --help
+```
+
 ## Running Tests
 
 ```bash
-pnpm test            # Run all tests once
+pnpm test            # Run all tests (623+)
 pnpm test:watch      # Run tests in watch mode
 ```
 
@@ -35,40 +51,41 @@ Run all three before submitting a PR to ensure CI will pass.
 
 ## How to Add a Skill
 
-Skills live in `packages/core/src/skills/builtin/`. Each skill is a directory containing a `SKILL.md` file.
+Skills live in `.agent-orchestra/skills/` in your project root. Each skill is a directory containing a `SKILL.md` file.
 
-1. Create a new directory under `packages/core/src/skills/builtin/`:
-   ```
-   packages/core/src/skills/builtin/your-skill/
-     SKILL.md
+1. Create a skill directory:
+   ```bash
+   mkdir -p .agent-orchestra/skills/your-skill
    ```
 
-2. Write your `SKILL.md` with the required frontmatter and sections:
+2. Write `SKILL.md` with YAML frontmatter and markdown body:
    ```markdown
    ---
    name: your-skill
-   version: 1.0.0
    description: Brief description of what the skill does
+   version: 1.0.0
+   license: MIT
    triggers:
-     - pattern or keyword that activates this skill
+     lenses: [security]
    ---
-
-   # Your Skill
 
    Instructions for the AI agent when this skill is activated.
    ```
 
-3. Register the skill if needed and add tests.
+3. Verify it loads: `agent-orchestra skills list`
 
 For full details on the SKILL.md format and advanced options, see [docs/skills/getting-started.md](docs/skills/getting-started.md).
 
 ## How to Add Core Code
 
-Core library code lives in `packages/core/src/`. The package is organized by feature area:
+The monorepo has 6 packages:
 
-- `packages/core/src/skills/` -- Skill system (parser, loader, matcher, injector)
-- `packages/core/src/context/` -- Context budget management
-- `packages/core/src/config/` -- Configuration handling
+- `packages/core/` -- Skill engine, policy, orchestrator, templates, storage, types
+- `packages/providers/` -- LLM provider adapters (OpenAI, Anthropic)
+- `packages/registry/` -- Skill registry client, lockfile, installer
+- `packages/shared/` -- Constants, errors, utilities
+- `apps/cli/` -- CLI application
+- `apps/server/` -- API server
 
 When adding new functionality:
 

@@ -2,6 +2,7 @@ import type { ContextBudgetManager } from '../interfaces/context-budget-manager.
 import type { OutputNormalizer } from '../interfaces/output-normalizer.js'
 import type { CancellationRegistry } from '../interfaces/cancellation-registry.js'
 import type { ContextBuilder } from '../context/context-builder.js'
+import type { SkillDefinition } from '../skills/types.js'
 
 /**
  * Spec v1.3 §8.2 — Dependencies injected into ProtocolRunner.execute().
@@ -19,4 +20,5 @@ export type ProtocolExecutionDeps = {
   eventBus: unknown
   cancellationRegistry: CancellationRegistry
   budgetManager: ContextBudgetManager
+  resolvedSkills: SkillDefinition[]
 }

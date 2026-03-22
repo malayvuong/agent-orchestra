@@ -18,6 +18,7 @@ export type RoundState =
   | 'rebuttal'
   | 'final_check'
   | 'convergence'
+  | 'apply'
 
 /** Spec v1.3 §4.12 */
 export type FindingClusterStatus = 'confirmed' | 'disputed' | 'needs_decision'
@@ -31,6 +32,26 @@ export type FindingCluster = {
     findingTitle: string
   }>
   status: FindingClusterStatus
+}
+
+/** Apply result summary for apply rounds */
+export type ApplySummary = {
+  attemptedFiles: string[]
+  writtenFiles: string[]
+  unchangedFiles: string[]
+  skippedFiles: Array<{ path: string; reason: string }>
+  errors: string[]
+}
+
+export type FinalCheckVerdict = 'improved' | 'mixed' | 'unchanged' | 'regressed'
+
+export type FinalCheckSummary = {
+  verdict: FinalCheckVerdict
+  score?: number
+  summary: string
+  changedFiles: string[]
+  unchangedFiles: string[]
+  baselineFingerprint?: string
 }
 
 /** Spec v1.3 §4.14 */
@@ -50,6 +71,12 @@ export type Round = {
   clusterOutput?: FindingCluster[]
   summary?: string
   createdAt: string
+
+  /** Present only on apply rounds — records actual file write results */
+  applySummary?: ApplySummary
+
+  /** Present only on final_check rounds — compares final artifact vs original baseline */
+  finalCheckSummary?: FinalCheckSummary
 }
 
 /** Spec v1.3 §4.6 */
