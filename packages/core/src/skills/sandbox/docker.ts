@@ -148,10 +148,12 @@ export class DockerCli {
    * @returns The log output as a string.
    */
   async logs(containerId: ContainerId, stream: 'stdout' | 'stderr'): Promise<string> {
-    const flag = stream === 'stdout' ? '--stdout' : '--stderr'
-    const noFlag = stream === 'stdout' ? '--no-stderr' : '--no-stdout'
-    const result = await this.exec(['logs', flag, noFlag, containerId])
-    return stream === 'stdout' ? result.stdout : result.stderr
+    const result = await this.exec(['logs', containerId])
+    if (stream === 'stdout') {
+      return result.stdout || result.stderr
+    }
+
+    return result.stderr || result.stdout
   }
 
   /**

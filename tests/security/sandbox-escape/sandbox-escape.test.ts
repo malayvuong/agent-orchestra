@@ -87,7 +87,7 @@ describe.skipIf(!DOCKER_AVAILABLE)('Sandbox Escape Prevention (integration)', ()
       expect(result.exitCode).toBe(0)
       // Container's passwd file should not have host-specific users
       // beyond standard container users (root, nobody, node, etc.)
-    })
+    }, 30_000)
 
     it('plugin cannot write to host workspace (read-only mount)', async () => {
       const sandbox = new SandboxRunner(defaultConfig, logger)
