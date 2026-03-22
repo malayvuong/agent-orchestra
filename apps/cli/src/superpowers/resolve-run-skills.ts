@@ -1,5 +1,5 @@
-import { SkillLoader, SkillParser, SkillSetLoader } from '@agent-orchestra/core'
-import type { SkillDefinition, SkillSet } from '@agent-orchestra/core'
+import { SkillLoader, SkillParser, SkillSetLoader } from '@malayvuong/agent-orchestra-core'
+import type { SkillDefinition, SkillSet } from '@malayvuong/agent-orchestra-core'
 import { simpleTokenEstimator } from '../utils/token-estimator.js'
 
 type ResolveRunSkillsOptions = {

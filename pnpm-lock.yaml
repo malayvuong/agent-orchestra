@@ -50,16 +50,16 @@ importers:
 
   apps/cli:
     dependencies:
-      '@agent-orchestra/core':
+      '@malayvuong/agent-orchestra-core':
         specifier: workspace:*
         version: link:../../packages/core
-      '@agent-orchestra/providers':
+      '@malayvuong/agent-orchestra-providers':
         specifier: workspace:*
         version: link:../../packages/providers
-      '@agent-orchestra/registry':
+      '@malayvuong/agent-orchestra-registry':
         specifier: workspace:*
         version: link:../../packages/registry
-      '@agent-orchestra/shared':
+      '@malayvuong/agent-orchestra-shared':
         specifier: workspace:*
         version: link:../../packages/shared
       '@modelcontextprotocol/sdk':
@@ -74,16 +74,16 @@ importers:
 
   apps/server:
     dependencies:
-      '@agent-orchestra/core':
+      '@malayvuong/agent-orchestra-core':
         specifier: workspace:*
         version: link:../../packages/core
-      '@agent-orchestra/shared':
+      '@malayvuong/agent-orchestra-shared':
         specifier: workspace:*
         version: link:../../packages/shared
 
   packages/core:
     dependencies:
-      '@agent-orchestra/shared':
+      '@malayvuong/agent-orchestra-shared':
         specifier: workspace:*
         version: link:../shared
       yaml:
@@ -92,19 +92,19 @@ importers:
 
   packages/providers:
     dependencies:
-      '@agent-orchestra/core':
+      '@malayvuong/agent-orchestra-core':
         specifier: workspace:*
         version: link:../core
-      '@agent-orchestra/shared':
+      '@malayvuong/agent-orchestra-shared':
         specifier: workspace:*
         version: link:../shared
 
   packages/registry:
     dependencies:
-      '@agent-orchestra/core':
+      '@malayvuong/agent-orchestra-core':
         specifier: workspace:*
         version: link:../core
-      '@agent-orchestra/shared':
+      '@malayvuong/agent-orchestra-shared':
         specifier: workspace:*
         version: link:../shared
       yaml:

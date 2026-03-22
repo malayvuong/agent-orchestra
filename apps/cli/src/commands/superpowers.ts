@@ -1,6 +1,6 @@
 import type { Command } from 'commander'
-import { loadSuperpowerCatalog } from '@agent-orchestra/core'
-import type { Superpower } from '@agent-orchestra/core'
+import { loadSuperpowerCatalog } from '@malayvuong/agent-orchestra-core'
+import type { Superpower } from '@malayvuong/agent-orchestra-core'
 
 /** Wraps an async command handler with user-friendly error handling */
 function handleErrors<T extends unknown[]>(fn: (...args: T) => Promise<void>) {

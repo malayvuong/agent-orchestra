@@ -1,5 +1,5 @@
 {
-  "name": "@agent-orchestra/core",
+  "name": "@malayvuong/agent-orchestra-core",
   "version": "0.0.1",
   "description": "Core engine for Agent Orchestra — types, skill system, context builder",
   "license": "MIT",
@@ -38,7 +38,7 @@
     "prepublishOnly": "pnpm run build"
   },
   "dependencies": {
-    "@agent-orchestra/shared": "workspace:*",
+    "@malayvuong/agent-orchestra-shared": "workspace:*",
     "yaml": "^2.8.2"
   }
 }

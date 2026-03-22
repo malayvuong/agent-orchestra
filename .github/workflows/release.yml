@@ -33,18 +33,28 @@ jobs:
       - name: Run tests
         run: pnpm test
 
-      - name: Publish @agent-orchestra/shared
-        run: pnpm --filter @agent-orchestra/shared publish --access public --no-git-checks
+      - name: Publish @malayvuong/agent-orchestra-shared
+        run: pnpm --filter @malayvuong/agent-orchestra-shared publish --access public --no-git-checks
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-      - name: Publish @agent-orchestra/core
-        run: pnpm --filter @agent-orchestra/core publish --access public --no-git-checks
+      - name: Publish @malayvuong/agent-orchestra-core
+        run: pnpm --filter @malayvuong/agent-orchestra-core publish --access public --no-git-checks
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-      - name: Publish @agent-orchestra/cli
-        run: pnpm --filter @agent-orchestra/cli publish --access public --no-git-checks
+      - name: Publish @malayvuong/agent-orchestra-providers
+        run: pnpm --filter @malayvuong/agent-orchestra-providers publish --access public --no-git-checks
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish @malayvuong/agent-orchestra-registry
+        run: pnpm --filter @malayvuong/agent-orchestra-registry publish --access public --no-git-checks
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish @malayvuong/agent-orchestra
+        run: pnpm --filter @malayvuong/agent-orchestra publish --access public --no-git-checks
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 

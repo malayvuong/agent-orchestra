@@ -11,7 +11,7 @@
     "build": "pnpm -r run build",
     "dev": "tsx apps/cli/src/index.ts",
     "dev:cli": "tsx apps/cli/src/index.ts",
-    "dev:server": "pnpm --filter @agent-orchestra/server dev",
+    "dev:server": "pnpm --filter @malayvuong/agent-orchestra-server dev",
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "eslint .",

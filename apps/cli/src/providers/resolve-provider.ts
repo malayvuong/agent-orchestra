@@ -1,5 +1,5 @@
-import type { AgentAssignment, ProviderOutput } from '@agent-orchestra/core'
-import { detectCliProviders } from '@agent-orchestra/providers'
+import type { AgentAssignment, ProviderOutput } from '@malayvuong/agent-orchestra-core'
+import { detectCliProviders } from '@malayvuong/agent-orchestra-providers'
 import type { AgentsConfig } from '../init/agents-config.js'
 
 type ProviderDescriptor = {
@@ -51,7 +51,7 @@ export async function buildProviderExecutor(options: ResolveProviderPlansOptions
     throw new Error('At least one enabled agent is required to resolve providers')
   }
 
-  const providers = await import('@agent-orchestra/providers')
+  const providers = await import('@malayvuong/agent-orchestra-providers')
   const cache = new Map<string, ProviderAdapter>()
 
   const getProvider = async (descriptor: ProviderDescriptor): Promise<ProviderAdapter> => {
@@ -213,7 +213,7 @@ function nonEmptyOrUndefined(value: string | undefined): string | undefined {
 }
 
 async function createProvider(providerName: string, model: string): Promise<ProviderAdapter> {
-  const providers = await import('@agent-orchestra/providers')
+  const providers = await import('@malayvuong/agent-orchestra-providers')
 
   if (providerName === 'auto') {
     const detected = await providers.detectCliProviders()

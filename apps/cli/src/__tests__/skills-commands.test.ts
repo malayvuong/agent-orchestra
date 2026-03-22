@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { createProgram } from '../program.js'
-import type { SkillDefinition, SkillLoadResult } from '@agent-orchestra/core'
-import { SkillLoader } from '@agent-orchestra/core'
+import type { SkillDefinition, SkillLoadResult } from '@malayvuong/agent-orchestra-core'
+import { SkillLoader } from '@malayvuong/agent-orchestra-core'
 
 // ---------------------------------------------------------------------------
 // Helpers

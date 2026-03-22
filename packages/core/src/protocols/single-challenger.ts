@@ -26,7 +26,7 @@ import { parseApplyOutput } from '../apply/parse-apply-output.js'
 
 /**
  * Minimal interface matching what we need from the provider executor.
- * The actual AgentProvider from @agent-orchestra/providers satisfies this contract.
+ * The actual AgentProvider from @malayvuong/agent-orchestra-providers satisfies this contract.
  */
 interface ProviderExecutor {
   run(input: {

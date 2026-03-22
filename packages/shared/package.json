@@ -1,5 +1,5 @@
 {
-  "name": "@agent-orchestra/shared",
+  "name": "@malayvuong/agent-orchestra-shared",
   "version": "0.0.1",
   "description": "Shared constants, errors, and utilities for Agent Orchestra",
   "license": "MIT",

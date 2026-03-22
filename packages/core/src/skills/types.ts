@@ -50,7 +50,7 @@ export type SkillLoadResult = {
 /**
  * Interface for checksum verification at load time (Phase B — Task B.3).
  * Defined in core to avoid circular dependency with registry package.
- * Implementors: LockfileManager in @agent-orchestra/registry.
+ * Implementors: LockfileManager in @malayvuong/agent-orchestra-registry.
  */
 export type ChecksumEntry = {
   algorithm: 'sha256'

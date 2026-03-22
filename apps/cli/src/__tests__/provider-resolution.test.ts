@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import type { AgentAssignment } from '@agent-orchestra/core'
+import type { AgentAssignment } from '@malayvuong/agent-orchestra-core'
 import type { AgentsConfig } from '../init/agents-config.js'
 import { resolveProviderPlans } from '../providers/resolve-provider.js'
 

@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
-import type { BaselineSnapshotRecord } from '@agent-orchestra/core'
+import type { BaselineSnapshotRecord } from '@malayvuong/agent-orchestra-core'
 import type { ResolvedTarget } from './resolve-target.js'
 import { toWorkspaceRelativePath } from './resolve-target.js'
 

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { ProviderRouter } from '../router.js'
 import type { AgentProvider, ProviderInput } from '../types.js'
-import type { ProviderOutput } from '@agent-orchestra/core'
+import type { ProviderOutput } from '@malayvuong/agent-orchestra-core'
 
 // ---------------------------------------------------------------------------
 // Mock providers

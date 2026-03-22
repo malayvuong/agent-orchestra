@@ -1,4 +1,4 @@
-import type { ProviderOutput } from '@agent-orchestra/core'
+import type { ProviderOutput } from '@malayvuong/agent-orchestra-core'
 import type { AgentProvider, ProviderInput } from '../types.js'
 import { ProviderError } from '../types.js'
 

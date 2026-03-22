@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { createProgram } from '../program.js'
 import { handleReviewTarget } from '../mcp/handlers.js'
-import { Orchestrator } from '@agent-orchestra/core'
+import { Orchestrator } from '@malayvuong/agent-orchestra-core'
 
 let workspacePath: string
 let originalOpenAiKey: string | undefined

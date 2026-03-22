@@ -1,5 +1,5 @@
 {
-  "name": "@agent-orchestra/providers",
+  "name": "@malayvuong/agent-orchestra-providers",
   "version": "0.0.1",
   "description": "LLM provider adapters for Agent Orchestra",
   "license": "MIT",
@@ -25,7 +25,7 @@
     "prepublishOnly": "pnpm run build"
   },
   "dependencies": {
-    "@agent-orchestra/core": "workspace:*",
-    "@agent-orchestra/shared": "workspace:*"
+    "@malayvuong/agent-orchestra-core": "workspace:*",
+    "@malayvuong/agent-orchestra-shared": "workspace:*"
   }
 }

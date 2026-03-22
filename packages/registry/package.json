@@ -1,5 +1,5 @@
 {
-  "name": "@agent-orchestra/registry",
+  "name": "@malayvuong/agent-orchestra-registry",
   "version": "0.0.1",
   "description": "Skill registry, lockfile, and installation management for Agent Orchestra",
   "license": "MIT",
@@ -30,8 +30,8 @@
     "prepublishOnly": "pnpm run build"
   },
   "dependencies": {
-    "@agent-orchestra/core": "workspace:*",
-    "@agent-orchestra/shared": "workspace:*",
+    "@malayvuong/agent-orchestra-core": "workspace:*",
+    "@malayvuong/agent-orchestra-shared": "workspace:*",
     "yaml": "^2.8.2"
   }
 }

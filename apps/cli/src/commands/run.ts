@@ -14,7 +14,7 @@ import {
   SkillInjector,
   loadSuperpowerCatalog,
   SuperpowerResolver,
-} from '@agent-orchestra/core'
+} from '@malayvuong/agent-orchestra-core'
 import type {
   AgentAssignment,
   AgentLens,
@@ -25,7 +25,7 @@ import type {
   Finding,
   ResolvedSuperpower,
   SkillDefinition,
-} from '@agent-orchestra/core'
+} from '@malayvuong/agent-orchestra-core'
 import { simpleTokenEstimator } from '../utils/token-estimator.js'
 import { loadAgentsConfig } from '../init/agents-config.js'
 import { buildProviderExecutor } from '../providers/resolve-provider.js'

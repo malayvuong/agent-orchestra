@@ -1,7 +1,7 @@
 import type { Command } from 'commander'
 import { resolve, join } from 'node:path'
-import { FileJobStore, FileRoundStore } from '@agent-orchestra/core'
-import type { Job, Round } from '@agent-orchestra/core'
+import { FileJobStore, FileRoundStore } from '@malayvuong/agent-orchestra-core'
+import type { Job, Round } from '@malayvuong/agent-orchestra-core'
 import { buildRunComparison, selectComparableJobs } from '../jobs/compare-runs.js'
 
 /** Base directory for agent-orchestra storage */

@@ -1,8 +1,8 @@
 import type { Command } from 'commander'
 import { join } from 'node:path'
 import { readFile } from 'node:fs/promises'
-import { PolicyEngine, loadPolicyConfig, SYSTEM_RULES } from '@agent-orchestra/core'
-import type { CapabilityScope } from '@agent-orchestra/core'
+import { PolicyEngine, loadPolicyConfig, SYSTEM_RULES } from '@malayvuong/agent-orchestra-core'
+import type { CapabilityScope } from '@malayvuong/agent-orchestra-core'
 
 /** Wraps an async command handler with user-friendly error handling */
 function handleErrors<T extends unknown[]>(fn: (...args: T) => Promise<void>) {

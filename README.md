@@ -124,7 +124,7 @@ A **superpower** is a one-command review preset — skills, agent config, and re
 
 ```bash
 # Install globally
-npm install -g @agent-orchestra/cli
+npm install -g @malayvuong/agent-orchestra
 
 # Or run from source
 git clone https://github.com/nicemvp/agent-orchestra.git

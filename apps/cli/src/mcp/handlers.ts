@@ -23,7 +23,7 @@ import {
   SuperpowerResolver,
   PolicyEngine,
   loadPolicyConfig,
-} from '@agent-orchestra/core'
+} from '@malayvuong/agent-orchestra-core'
 import type {
   AgentAssignment,
   AgentLens,
@@ -35,7 +35,7 @@ import type {
   ResolvedSuperpower,
   CapabilityScope,
   SkillDefinition,
-} from '@agent-orchestra/core'
+} from '@malayvuong/agent-orchestra-core'
 import { loadAgentsConfig } from '../init/agents-config.js'
 import { buildRunComparison, selectComparableJobs } from '../jobs/compare-runs.js'
 import { buildProviderExecutor } from '../providers/resolve-provider.js'

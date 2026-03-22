@@ -1,6 +1,6 @@
 import type { Command } from 'commander'
 import { join } from 'node:path'
-import { ToolAuditLogger } from '@agent-orchestra/core'
+import { ToolAuditLogger } from '@malayvuong/agent-orchestra-core'
 
 /** Simple logger that routes warnings to stderr */
 const cliLogger = {

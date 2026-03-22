@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { AgentOrchestraError } from '@agent-orchestra/shared'
+import { AgentOrchestraError } from '@malayvuong/agent-orchestra-shared'
 import type { CapabilityScope, SkillPolicy } from '../types.js'
 import type { PolicyEvaluation } from '../policy/types.js'
 import type { SkillArtifact, SkillInvocation, SkillInvocationStore } from './types.js'

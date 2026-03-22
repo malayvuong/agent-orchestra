@@ -1,5 +1,5 @@
 {
-  "name": "@agent-orchestra/cli",
+  "name": "@malayvuong/agent-orchestra",
   "version": "0.0.1",
   "description": "CLI for Agent Orchestra — AI agent orchestration with skills/skillset system",
   "license": "MIT",
@@ -33,10 +33,10 @@
     "prepublishOnly": "pnpm run build"
   },
   "dependencies": {
-    "@agent-orchestra/core": "workspace:*",
-    "@agent-orchestra/providers": "workspace:*",
-    "@agent-orchestra/registry": "workspace:*",
-    "@agent-orchestra/shared": "workspace:*",
+    "@malayvuong/agent-orchestra-core": "workspace:*",
+    "@malayvuong/agent-orchestra-providers": "workspace:*",
+    "@malayvuong/agent-orchestra-registry": "workspace:*",
+    "@malayvuong/agent-orchestra-shared": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.27.1",
     "commander": "^13.1.0",
     "yaml": "^2.8.2"

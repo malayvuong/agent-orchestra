@@ -1,7 +1,7 @@
 import { createServer, type ServerResponse } from 'node:http'
 import { readdir, readFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { loadSuperpowerCatalog } from '@agent-orchestra/core'
+import { loadSuperpowerCatalog } from '@malayvuong/agent-orchestra-core'
 
 const PORT = Number(process.env.PORT ?? 3100)
 const STORAGE_DIR = process.env.STORAGE_DIR ?? join(process.cwd(), '.agent-orchestra')

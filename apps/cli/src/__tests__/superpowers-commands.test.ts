@@ -26,7 +26,7 @@ function captureConsole(): { output: string[]; restore: () => void } {
 }
 
 // ---------------------------------------------------------------------------
-// Setup — use the real loadSuperpowerCatalog from @agent-orchestra/core.
+// Setup — use the real loadSuperpowerCatalog from @malayvuong/agent-orchestra-core.
 // The catalog is self-contained (no I/O) so no mocking is needed.
 // ---------------------------------------------------------------------------
 

@@ -1,4 +1,4 @@
-import type { Job, Round } from '@agent-orchestra/core'
+import type { Job, Round } from '@malayvuong/agent-orchestra-core'
 
 export type ComparableRun = {
   jobId: string

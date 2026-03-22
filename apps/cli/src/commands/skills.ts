@@ -1,14 +1,19 @@
 import type { Command } from 'commander'
 import { join } from 'node:path'
 import { cp, rm, mkdir } from 'node:fs/promises'
-import { SkillParser, SkillLoader, SkillMatcher, type SkillDefinition } from '@agent-orchestra/core'
-import type { AgentAssignment } from '@agent-orchestra/core'
+import {
+  SkillParser,
+  SkillLoader,
+  SkillMatcher,
+  type SkillDefinition,
+} from '@malayvuong/agent-orchestra-core'
+import type { AgentAssignment } from '@malayvuong/agent-orchestra-core'
 import {
   LockfileManager,
   SkillInstaller,
   RegistryClient,
   computeDirectoryChecksum,
-} from '@agent-orchestra/registry'
+} from '@malayvuong/agent-orchestra-registry'
 import { simpleTokenEstimator } from '../utils/token-estimator.js'
 
 /** Simple logger that routes loader/parser warnings to stderr */

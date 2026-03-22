@@ -17,12 +17,17 @@ const execFileAsync = promisify(execFile)
 import { SkillInstaller } from '../installer.js'
 import { LockfileManager } from '../lockfile.js'
 import { computeDirectoryChecksum } from '../checksum.js'
-import type { ChecksumEntry } from '@agent-orchestra/core'
+import type { ChecksumEntry } from '@malayvuong/agent-orchestra-core'
 
 // We import core skill classes to exercise the full pipeline
 // NOTE: These are imported as types/classes — the integration test spans both packages
-import { SkillParser, SkillLoader, SkillMatcher, SkillInjector } from '@agent-orchestra/core'
-import type { AgentAssignment } from '@agent-orchestra/core'
+import {
+  SkillParser,
+  SkillLoader,
+  SkillMatcher,
+  SkillInjector,
+} from '@malayvuong/agent-orchestra-core'
+import type { AgentAssignment } from '@malayvuong/agent-orchestra-core'
 
 // ---------------------------------------------------------------------------
 // Helpers

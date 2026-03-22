@@ -1,4 +1,4 @@
-import type { TokenEstimator } from '@agent-orchestra/core'
+import type { TokenEstimator } from '@malayvuong/agent-orchestra-core'
 
 /**
  * Conservative token estimator using ~3 chars/token heuristic.

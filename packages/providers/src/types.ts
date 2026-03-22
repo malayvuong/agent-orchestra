@@ -1,4 +1,4 @@
-import type { ProviderOutput } from '@agent-orchestra/core'
+import type { ProviderOutput } from '@malayvuong/agent-orchestra-core'
 
 /**
  * Input to an LLM provider adapter.

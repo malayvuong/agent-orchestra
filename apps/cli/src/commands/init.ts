@@ -75,7 +75,7 @@ async function runInit(opts: {
   console.log('')
 
   // Phase A2: Provider detection
-  const { detectCliProviders } = await import('@agent-orchestra/providers')
+  const { detectCliProviders } = await import('@malayvuong/agent-orchestra-providers')
   const detected = await detectCliProviders()
 
   const apiKeys = {
