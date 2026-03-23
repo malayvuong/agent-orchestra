@@ -166,6 +166,8 @@ pnpm link:ao
 ao --help
 ```
 
+This creates a symlink in the npm global bin directory so `ao` resolves to the local checkout.
+
 Remove the local link later with:
 
 ```bash
