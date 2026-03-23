@@ -1,6 +1,7 @@
 import type { Command } from 'commander'
 import { loadSuperpowerCatalog } from '@malayvuong/agent-orchestra-core'
 import type { Superpower } from '@malayvuong/agent-orchestra-core'
+import { getDefaultModelForProvider } from '@malayvuong/agent-orchestra-providers'
 
 /** Wraps an async command handler with user-friendly error handling */
 function handleErrors<T extends unknown[]>(fn: (...args: T) => Promise<void>) {
@@ -100,9 +101,10 @@ async function runSuperpowersShow(id: string): Promise<void> {
 
   // Agent preset
   if (sp.agentPreset.architect?.enabled) {
-    console.log(
-      `  Architect: enabled (${sp.agentPreset.architect.provider ?? 'openai'} / ${sp.agentPreset.architect.model ?? 'gpt-4o'})`,
-    )
+    const architectProvider = sp.agentPreset.architect.provider ?? 'openai'
+    const architectModel =
+      sp.agentPreset.architect.model ?? getDefaultModelForProvider(architectProvider)
+    console.log(`  Architect: enabled (${architectProvider} / ${architectModel})`)
   }
   const reviewerLens = sp.agentPreset.reviewer.lens ?? '(default)'
   const reviewerCount = sp.agentPreset.reviewer.count ?? 1

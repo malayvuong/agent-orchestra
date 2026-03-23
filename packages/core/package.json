@@ -1,6 +1,6 @@
 {
   "name": "@malayvuong/agent-orchestra-core",
-  "version": "2026.3.2",
+  "version": "2026.3.4",
   "description": "Core engine for Agent Orchestra — types, skill system, context builder",
   "license": "MIT",
   "type": "module",

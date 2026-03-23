@@ -102,6 +102,63 @@ describe('run command target wiring', () => {
     expect(brief).toContain('--- README.md ---')
     expect(brief).toContain('--- docs/spec.md ---')
   })
+
+  it('passes --max-rounds through to the created job', async () => {
+    await writeWorkspaceFile('README.md', '# Root Plan\n')
+
+    let capturedParams: Record<string, unknown> | undefined
+    vi.spyOn(Orchestrator.prototype, 'createJob').mockImplementation(async (params) => {
+      capturedParams = params as unknown as Record<string, unknown>
+      return {
+        id: 'job-run-round-budget',
+        title: params.title,
+        brief: params.brief,
+        mode: params.mode,
+        status: 'draft',
+        protocol: params.protocol,
+        scope: params.scope,
+        targetResolution: params.targetResolution,
+        decisionLog: {
+          lockedConstraints: [],
+          acceptedDecisions: [],
+          rejectedOptions: [],
+          unresolvedItems: [],
+        },
+        agents: params.agents,
+        currentRoundIndex: 0,
+        maxRounds: params.maxRounds ?? 10,
+        templateVersions: {},
+        runtimeConfig: params.runtimeConfig ?? {
+          maxConcurrentAgents: 2,
+          pausePointsEnabled: false,
+          synthesisConfig: { provider: 'architect_provider', rerunnable: false },
+        },
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      }
+    })
+    vi.spyOn(Orchestrator.prototype, 'runJob').mockResolvedValue(undefined)
+
+    const program = createProgram()
+    await program.parseAsync([
+      'node',
+      'agent-orchestra',
+      'run',
+      '--provider',
+      'openai',
+      '--model',
+      'gpt-4o',
+      '--path',
+      workspacePath,
+      '--target',
+      'README.md',
+      '--max-rounds',
+      '12',
+    ])
+
+    expect(capturedParams).toBeDefined()
+    expect(capturedParams!.maxRounds).toBe(12)
+  })
 })
 
 describe('MCP review_target target wiring', () => {

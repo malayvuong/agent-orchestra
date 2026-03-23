@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { chmod, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { chmod, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { ClaudeCliProvider } from '../claude-cli.js'
@@ -39,7 +39,7 @@ describe('ClaudeCliProvider', () => {
       provider.run({
         systemPrompt: 'test',
         userPrompt: 'test',
-        model: 'sonnet',
+        model: 'claude-opus-4-6',
       }),
     ).rejects.toThrow(ProviderError)
 
@@ -47,7 +47,7 @@ describe('ClaudeCliProvider', () => {
       await provider.run({
         systemPrompt: 'test',
         userPrompt: 'test',
-        model: 'sonnet',
+        model: 'claude-opus-4-6',
       })
     } catch (err) {
       expect(err).toBeInstanceOf(ProviderError)
@@ -70,7 +70,7 @@ describe('CodexCliProvider', () => {
   it('can be constructed with custom config', () => {
     const provider = new CodexCliProvider({
       command: '/usr/local/bin/codex',
-      defaultModel: 'gpt-4o',
+      defaultModel: 'gpt-5.4',
     })
     expect(provider).toBeDefined()
   })
@@ -89,7 +89,7 @@ describe('CodexCliProvider', () => {
       provider.run({
         systemPrompt: 'test',
         userPrompt: 'test',
-        model: 'o4-mini',
+        model: 'gpt-5.4',
       }),
     ).rejects.toThrow(ProviderError)
 
@@ -97,7 +97,7 @@ describe('CodexCliProvider', () => {
       await provider.run({
         systemPrompt: 'test',
         userPrompt: 'test',
-        model: 'o4-mini',
+        model: 'gpt-5.4',
       })
     } catch (err) {
       expect(err).toBeInstanceOf(ProviderError)
@@ -237,5 +237,60 @@ describe('CodexCliProvider — echo integration', () => {
 
     expect(result.rawText).toBeTruthy()
     expect(result.exitCode).toBe(0)
+  })
+
+  it('uses codex exec with stdin prompt delivery and GPT-5.4 as the default model', async () => {
+    const scriptDir = await mkdtemp(join(tmpdir(), 'ao-codex-cli-test-'))
+    const scriptPath = join(scriptDir, 'fake-codex.sh')
+    const argsPath = join(scriptDir, 'args.txt')
+    const stdinPath = join(scriptDir, 'stdin.txt')
+
+    try {
+      await writeFile(
+        scriptPath,
+        `#!/bin/sh
+args_file="${argsPath}"
+stdin_file="${stdinPath}"
+output_file=""
+prev=""
+printf '%s\n' "$@" > "$args_file"
+for arg in "$@"; do
+  if [ "$prev" = "--output-last-message" ]; then
+    output_file="$arg"
+    break
+  fi
+  prev="$arg"
+done
+cat > "$stdin_file"
+if [ -n "$output_file" ]; then
+  printf 'codex-final-message' > "$output_file"
+fi
+printf 'progress\\n' >&2
+exit 0
+`,
+        'utf-8',
+      )
+      await chmod(scriptPath, 0o755)
+
+      const provider = new CodexCliProvider({ command: scriptPath })
+      const result = await provider.run({
+        systemPrompt: 'system prompt',
+        userPrompt: 'user prompt',
+        model: '',
+      })
+
+      const args = await readFile(argsPath, 'utf-8')
+      const stdin = await readFile(stdinPath, 'utf-8')
+
+      expect(result.rawText).toBe('codex-final-message')
+      expect(args).toContain('exec')
+      expect(args).toContain('--model')
+      expect(args).toContain('gpt-5.4')
+      expect(args).toContain('--output-last-message')
+      expect(stdin).toContain('system prompt')
+      expect(stdin).toContain('user prompt')
+    } finally {
+      await rm(scriptDir, { recursive: true, force: true })
+    }
   })
 })

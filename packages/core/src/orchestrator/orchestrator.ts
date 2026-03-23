@@ -17,6 +17,7 @@ export type CreateJobParams = {
   targetResolution: Job['targetResolution']
   baselineSnapshot?: Job['baselineSnapshot']
   agents: AgentAssignment[]
+  maxRounds?: number
   runtimeConfig?: Job['runtimeConfig']
   failurePolicy?: Job['failurePolicy']
 }
@@ -91,7 +92,7 @@ export class Orchestrator {
       baselineSnapshot: params.baselineSnapshot,
       agents: params.agents,
       currentRoundIndex: 0,
-      maxRounds: 10,
+      maxRounds: params.maxRounds ?? 10,
       templateVersions: {},
       runtimeConfig: params.runtimeConfig ?? {
         maxConcurrentAgents: 2,

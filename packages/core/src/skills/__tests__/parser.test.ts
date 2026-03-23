@@ -262,7 +262,7 @@ describe('SkillParser.parse', () => {
 
     expect(skill.id).toBe('owasp-top-10')
     expect(skill.name).toBe('OWASP Top 10')
-    expect(skill.version).toBe('2026.3.2')
+    expect(skill.version).toBe('2026.3.4')
     expect(skill.license).toBe('MIT')
     expect(skill.compatibility?.agentOrchestra).toBe('>=1.3.0')
     expect(skill.compatibility?.platforms).toContain('darwin')

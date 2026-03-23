@@ -1,4 +1,7 @@
+import { getDefaultModelForProvider } from '@malayvuong/agent-orchestra-shared'
 import type { Superpower } from './types.js'
+
+const DEFAULT_OPENAI_MODEL = getDefaultModelForProvider('openai')
 
 /**
  * Built-in superpowers shipped with agent-orchestra core.
@@ -21,14 +24,14 @@ export const BUILTIN_SUPERPOWERS: Superpower[] = [
       architect: {
         enabled: true,
         provider: 'openai',
-        model: 'gpt-4o',
+        model: DEFAULT_OPENAI_MODEL,
       },
       reviewer: {
         role: 'reviewer',
         lens: 'security',
         count: 1,
         provider: 'openai',
-        model: 'gpt-4o',
+        model: DEFAULT_OPENAI_MODEL,
       },
     },
     maturity: 'safe',
@@ -48,14 +51,14 @@ export const BUILTIN_SUPERPOWERS: Superpower[] = [
       architect: {
         enabled: true,
         provider: 'openai',
-        model: 'gpt-4o',
+        model: DEFAULT_OPENAI_MODEL,
       },
       reviewer: {
         role: 'reviewer',
         lens: 'security',
         count: 1,
         provider: 'openai',
-        model: 'gpt-4o',
+        model: DEFAULT_OPENAI_MODEL,
       },
     },
     capabilityExpectation: ['fs.read', 'net.http'],
@@ -77,14 +80,14 @@ export const BUILTIN_SUPERPOWERS: Superpower[] = [
       architect: {
         enabled: true,
         provider: 'openai',
-        model: 'gpt-4o',
+        model: DEFAULT_OPENAI_MODEL,
       },
       reviewer: {
         role: 'reviewer',
         lens: 'testing',
         count: 1,
         provider: 'openai',
-        model: 'gpt-4o',
+        model: DEFAULT_OPENAI_MODEL,
       },
     },
     maturity: 'safe',
@@ -104,14 +107,14 @@ export const BUILTIN_SUPERPOWERS: Superpower[] = [
       architect: {
         enabled: true,
         provider: 'openai',
-        model: 'gpt-4o',
+        model: DEFAULT_OPENAI_MODEL,
       },
       reviewer: {
         role: 'reviewer',
         lens: 'logic',
         count: 1,
         provider: 'openai',
-        model: 'gpt-4o',
+        model: DEFAULT_OPENAI_MODEL,
       },
     },
     capabilityExpectation: ['fs.read', 'fs.write', 'proc.spawn'],
@@ -140,14 +143,14 @@ export const BUILTIN_SUPERPOWERS: Superpower[] = [
       architect: {
         enabled: true,
         provider: 'openai',
-        model: 'gpt-4o',
+        model: DEFAULT_OPENAI_MODEL,
       },
       reviewer: {
         role: 'reviewer',
         lens: 'implementation_readiness',
         count: 1,
         provider: 'openai',
-        model: 'gpt-4o',
+        model: DEFAULT_OPENAI_MODEL,
       },
     },
     maturity: 'safe',

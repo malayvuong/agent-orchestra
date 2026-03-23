@@ -269,13 +269,23 @@ describe('SuperpowerResolver.resolve() — overrides', () => {
     }
   })
 
+  it('uses the overridden provider default model when provider changes without a model override', () => {
+    const resolver = createResolver()
+    const result = resolver.resolve('security-review', { provider: 'anthropic' })
+
+    for (const assignment of result.agentAssignments) {
+      expect(assignment.providerKey).toBe('anthropic')
+      expect(assignment.modelOrCommand).toBe('claude-sonnet-4-6')
+    }
+  })
+
   it('applies model override from CLI args', () => {
     const resolver = createResolver()
-    const result = resolver.resolve('security-review', { model: 'claude-sonnet-4-20250514' })
+    const result = resolver.resolve('security-review', { model: 'claude-sonnet-4-6' })
 
     // All assignments should use the overridden model
     for (const assignment of result.agentAssignments) {
-      expect(assignment.modelOrCommand).toBe('claude-sonnet-4-20250514')
+      expect(assignment.modelOrCommand).toBe('claude-sonnet-4-6')
     }
   })
 
@@ -283,12 +293,12 @@ describe('SuperpowerResolver.resolve() — overrides', () => {
     const resolver = createResolver()
     const result = resolver.resolve('security-review', {
       provider: 'anthropic',
-      model: 'claude-sonnet-4-20250514',
+      model: 'claude-sonnet-4-6',
     })
 
     for (const assignment of result.agentAssignments) {
       expect(assignment.providerKey).toBe('anthropic')
-      expect(assignment.modelOrCommand).toBe('claude-sonnet-4-20250514')
+      expect(assignment.modelOrCommand).toBe('claude-sonnet-4-6')
     }
   })
 })

@@ -129,7 +129,7 @@ function makeJob(overrides: Partial<Job> = {}): Job {
       },
     ],
     currentRoundIndex: 0,
-    maxRounds: 10,
+    maxRounds: 5,
     templateVersions: {},
     runtimeConfig: {
       maxConcurrentAgents: 2,
@@ -300,6 +300,47 @@ describe('SingleChallengerRunner', () => {
     expect(providerCallCount.count).toBe(4)
   })
 
+  it('uses job.maxRounds as the step budget for iterative review', async () => {
+    const { deps, savedRounds, providerCallCount } = makeMockDeps()
+    const job = makeJob({ maxRounds: 7 })
+
+    await runner.execute(job, deps)
+
+    expect(savedRounds.map((round) => round.state)).toEqual([
+      'analysis',
+      'review',
+      'rebuttal',
+      'review',
+      'rebuttal',
+      'convergence',
+      'final_check',
+    ])
+    expect(providerCallCount.count).toBe(6)
+  })
+
+  it('preserves legacy maxDebateRounds behavior for existing jobs', async () => {
+    const { deps, savedRounds } = makeMockDeps()
+    const job = makeJob({
+      maxRounds: 10,
+      runtimeConfig: {
+        maxConcurrentAgents: 2,
+        pausePointsEnabled: false,
+        synthesisConfig: { provider: 'architect_provider', rerunnable: false },
+        maxDebateRounds: 1,
+      },
+    })
+
+    await runner.execute(job, deps)
+
+    expect(savedRounds.map((round) => round.state)).toEqual([
+      'analysis',
+      'review',
+      'rebuttal',
+      'convergence',
+      'final_check',
+    ])
+  })
+
   it('passes resolved skills into every context-builder call', async () => {
     const { deps } = makeMockDeps()
     const job = makeJob()
@@ -414,6 +455,7 @@ describe('SingleChallengerRunner', () => {
   it('should persist apply round with state "apply" and applySummary when autoApply is true', async () => {
     const { deps, savedRounds } = makeMockDeps()
     const job = makeJob({
+      maxRounds: 6,
       runtimeConfig: {
         maxConcurrentAgents: 2,
         pausePointsEnabled: false,
@@ -474,6 +516,7 @@ describe('SingleChallengerRunner', () => {
     }
 
     const job = makeJob({
+      maxRounds: 6,
       scope: {
         primaryTargets: [targetPath],
         excludedTargets: [],

@@ -1,4 +1,4 @@
-import type { Command } from 'commander'
+import { Option, type Command } from 'commander'
 import { join, resolve } from 'node:path'
 import {
   ContextBuilder,
@@ -111,7 +111,8 @@ async function runCommand(opts: {
   architectModel?: string
   reviewerProvider?: string
   reviewerModel?: string
-  debateRounds: string
+  maxRounds?: string
+  debateRounds?: string
   autoApply: boolean
 }): Promise<void> {
   const workspacePath = resolve(opts.path)
@@ -390,11 +391,20 @@ async function runCommand(opts: {
   // 6. Create and run job
   console.log('Creating job...')
 
-  const debateRounds = parseInt(opts.debateRounds, 10) || 1
+  const explicitMaxRounds = parsePositiveInteger(opts.maxRounds)
+  const legacyDebateRounds = parsePositiveInteger(opts.debateRounds)
+  const maxRounds =
+    explicitMaxRounds ??
+    (legacyDebateRounds !== undefined
+      ? legacyDebateRoundsToMaxRounds(legacyDebateRounds, opts.autoApply)
+      : 10)
+
+  if (legacyDebateRounds !== undefined && explicitMaxRounds === undefined) {
+    console.log('[WARN] --debate-rounds is deprecated. Use --max-rounds instead.')
+  }
 
   const runtimeOverrides = {
     ...(resolved?.runtimeConfigPatch ?? {}),
-    ...(debateRounds > 1 ? { maxDebateRounds: debateRounds } : {}),
     ...(opts.autoApply ? { autoApply: true } : {}),
   }
   const runtimeConfig: JobRuntimeConfig | undefined =
@@ -419,6 +429,7 @@ async function runCommand(opts: {
     targetResolution: resolvedTarget,
     baselineSnapshot,
     agents,
+    maxRounds,
     runtimeConfig,
   })
 
@@ -516,7 +527,7 @@ async function runCommand(opts: {
 // ---------------------------------------------------------------------------
 
 export function registerRunCommand(program: Command): void {
-  program
+  const runCommandDefinition = program
     .command('run')
     .description('Run a multi-agent code review')
     .requiredOption('--target <path>', 'File or directory to review')
@@ -531,9 +542,9 @@ export function registerRunCommand(program: Command): void {
     .option('--reviewer-provider <name>', 'Provider for reviewer agent')
     .option('--reviewer-model <model>', 'Model for reviewer agent')
     .option(
-      '--debate-rounds <n>',
-      'Max iterative debate rounds (default: 1, cap: 2^(agents+1))',
-      '1',
+      '--max-rounds <n>',
+      'Max protocol steps to persist before convergence/apply/final_check (default: 10)',
+      '10',
     )
     .option('--auto-apply', 'Auto-apply confirmed findings to the original file', false)
     .option('--path <path>', 'Workspace path', process.cwd())
@@ -552,11 +563,32 @@ export function registerRunCommand(program: Command): void {
           architectModel?: string
           reviewerProvider?: string
           reviewerModel?: string
-          debateRounds: string
+          maxRounds?: string
+          debateRounds?: string
           autoApply: boolean
         }) => {
           await runCommand(opts)
         },
       ),
     )
+
+  runCommandDefinition.addOption(
+    new Option('--debate-rounds <n>', 'Deprecated alias for --max-rounds').hideHelp(),
+  )
+}
+
+function parsePositiveInteger(raw: string | undefined): number | undefined {
+  if (raw === undefined) {
+    return undefined
+  }
+
+  const parsed = Number.parseInt(raw, 10)
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined
+}
+
+function legacyDebateRoundsToMaxRounds(debateRounds: number, autoApply: boolean): number {
+  const normalizedDebateRounds = Math.max(1, debateRounds)
+  const interactiveSteps = 2 + normalizedDebateRounds + (normalizedDebateRounds - 1)
+  const terminalSteps = 2 + (autoApply ? 1 : 0)
+  return interactiveSteps + terminalSteps
 }

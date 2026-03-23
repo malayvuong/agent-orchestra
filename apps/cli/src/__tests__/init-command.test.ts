@@ -67,6 +67,7 @@ describe('init command — registration', () => {
     expect(optionLongs).toContain('--project-type')
     expect(optionLongs).toContain('--with-policy')
     expect(optionLongs).toContain('--with-skillsets')
+    expect(optionLongs).toContain('--refresh-agents')
     expect(optionLongs).toContain('--force')
   })
 })
@@ -128,6 +129,33 @@ describe('init command — basic execution', () => {
 // ---------------------------------------------------------------------------
 
 describe('init command — safe behavior', () => {
+  it('refreshes agents.yaml when --refresh-agents is passed', async () => {
+    await mkdir(join(tempDir, '.agent-orchestra'), { recursive: true })
+    await writeFile(
+      join(tempDir, '.agent-orchestra', 'agents.yaml'),
+      `architect:\n  provider: codex-cli\n  model: o4-mini\n\nreviewer:\n  provider: codex-cli\n  model: o4-mini\n`,
+    )
+
+    await runInit(['--refresh-agents'])
+
+    const content = await readFile(join(tempDir, '.agent-orchestra', 'agents.yaml'), 'utf-8')
+    expect(content).toContain('model: gpt-5.4')
+    expect(content).not.toContain('model: o4-mini')
+  })
+
+  it('keeps existing agents.yaml by default and hints about --refresh-agents', async () => {
+    await mkdir(join(tempDir, '.agent-orchestra'), { recursive: true })
+    const originalContent = `architect:\n  provider: codex-cli\n  model: o4-mini\n\nreviewer:\n  provider: codex-cli\n  model: o4-mini\n`
+    await writeFile(join(tempDir, '.agent-orchestra', 'agents.yaml'), originalContent)
+
+    const output = await runInit()
+    const combined = output.join('\n')
+    const content = await readFile(join(tempDir, '.agent-orchestra', 'agents.yaml'), 'utf-8')
+
+    expect(content).toBe(originalContent)
+    expect(combined).toContain('--refresh-agents')
+  })
+
   it('does not overwrite existing AGENTS.md without --force', async () => {
     const originalContent = '# My Existing Agents\n\nCustom instructions here.'
     await writeFile(join(tempDir, 'AGENTS.md'), originalContent)
@@ -167,6 +195,28 @@ describe('init command — safe behavior', () => {
 // ---------------------------------------------------------------------------
 
 describe('init command — optional files', () => {
+  it('bootstraps built-in skills and skillsets by default for superpower runs', async () => {
+    await runInit()
+
+    const sequencingSkill = await readFile(
+      join(tempDir, '.agent-orchestra', 'skills', 'sequencing-check', 'SKILL.md'),
+      'utf-8',
+    )
+    const securitySkill = await readFile(
+      join(tempDir, '.agent-orchestra', 'skills', 'security-review', 'SKILL.md'),
+      'utf-8',
+    )
+    const builtinSkillsets = await readFile(
+      join(tempDir, '.agent-orchestra', 'skillsets.builtin.yaml'),
+      'utf-8',
+    )
+
+    expect(sequencingSkill).toContain('name: Sequencing Check')
+    expect(securitySkill).toContain('name: Security Review')
+    expect(builtinSkillsets).toContain('id: plan-review')
+    expect(builtinSkillsets).toContain('id: security-review')
+  })
+
   it('--with-policy generates policy.yaml', async () => {
     await runInit(['--with-policy'])
 

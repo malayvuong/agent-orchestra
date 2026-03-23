@@ -235,10 +235,10 @@ describe('plan-review — overrides', () => {
 
   it('applies model override', () => {
     const resolver = createResolver()
-    const result = resolver.resolve('plan-review', { model: 'claude-sonnet-4-20250514' })
+    const result = resolver.resolve('plan-review', { model: 'claude-sonnet-4-6' })
 
     for (const a of result.agentAssignments) {
-      expect(a.modelOrCommand).toBe('claude-sonnet-4-20250514')
+      expect(a.modelOrCommand).toBe('claude-sonnet-4-6')
     }
   })
 })

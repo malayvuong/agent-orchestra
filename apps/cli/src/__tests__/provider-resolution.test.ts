@@ -79,9 +79,41 @@ describe('resolveProviderPlans', () => {
 
     expect(result.defaultPlan).toEqual({
       providerKey: 'codex-cli',
-      modelOrCommand: '',
+      modelOrCommand: 'gpt-5.4',
     })
     expect(result.agents.every((agent) => agent.providerKey === 'codex-cli')).toBe(true)
+    expect(result.agents.every((agent) => agent.modelOrCommand === 'gpt-5.4')).toBe(true)
+  })
+
+  it('uses provider-specific reasoning defaults instead of inheriting another provider model', async () => {
+    const agentsConfig: AgentsConfig = {
+      architect: { provider: 'claude-cli' },
+      reviewers: [{ provider: 'codex-cli' }],
+    }
+
+    const result = await resolveProviderPlans({
+      agents: makeAgents(),
+      defaultProvider: 'auto',
+      defaultModel: '',
+      agentsConfig,
+      detectCliProviders: vi.fn().mockResolvedValue({
+        claudeCli: true,
+        codexCli: true,
+        preferred: 'claude-cli',
+      }),
+    })
+
+    expect(result.defaultPlan).toBeNull()
+    expect(
+      result.agents.map((agent) => ({
+        role: agent.role,
+        providerKey: agent.providerKey,
+        modelOrCommand: agent.modelOrCommand,
+      })),
+    ).toEqual([
+      { role: 'architect', providerKey: 'claude-cli', modelOrCommand: 'claude-opus-4-6' },
+      { role: 'reviewer', providerKey: 'codex-cli', modelOrCommand: 'gpt-5.4' },
+    ])
   })
 
   it('applies explicit per-role overrides before agents.yaml and shared defaults', async () => {
@@ -93,7 +125,7 @@ describe('resolveProviderPlans', () => {
     const result = await resolveProviderPlans({
       agents: makeAgents(),
       defaultProvider: 'openai',
-      defaultModel: 'gpt-4o',
+      defaultModel: 'gpt-5.4',
       agentsConfig,
       architectOverride: { provider: 'deepseek', model: 'deepseek-chat' },
       reviewerOverride: { provider: 'grok', model: 'grok-3' },

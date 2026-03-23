@@ -112,7 +112,7 @@ describe('OpenAIProvider', () => {
       expect(body.messages[1].role).toBe('user')
     })
 
-    it('should use default model when not specified', async () => {
+    it('should use GPT-5.4 as the default model when not specified', async () => {
       const mockFetch = vi.fn().mockResolvedValue(
         mockResponse({
           choices: [{ message: { content: 'response' }, finish_reason: 'stop' }],
@@ -121,7 +121,7 @@ describe('OpenAIProvider', () => {
       )
       globalThis.fetch = mockFetch
 
-      const provider = new OpenAIProvider({ apiKey: 'key', defaultModel: 'gpt-4o-mini' })
+      const provider = new OpenAIProvider({ apiKey: 'key' })
       await provider.run({
         systemPrompt: 'sys',
         userPrompt: 'user',
@@ -129,7 +129,7 @@ describe('OpenAIProvider', () => {
       })
 
       const body = JSON.parse(mockFetch.mock.calls[0][1].body)
-      expect(body.model).toBe('gpt-4o-mini')
+      expect(body.model).toBe('gpt-5.4')
     })
 
     it('should include temperature when specified', async () => {

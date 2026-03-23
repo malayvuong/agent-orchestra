@@ -1,4 +1,5 @@
 import type { ProviderOutput } from '@malayvuong/agent-orchestra-core'
+import { getDefaultModelForProvider } from '@malayvuong/agent-orchestra-shared'
 import type { AgentProvider, ProviderInput } from '../types.js'
 import { ProviderError } from '../types.js'
 
@@ -10,6 +11,8 @@ const ANTHROPIC_VERSION = '2023-06-01'
 
 /** Pricing per 1M tokens (USD) for Anthropic models */
 const MODEL_PRICING: Record<string, { input: number; output: number }> = {
+  'claude-sonnet-4-6': { input: 3, output: 15 },
+  'claude-opus-4-6': { input: 15, output: 75 },
   'claude-sonnet-4-20250514': { input: 3, output: 15 },
   'claude-opus-4-20250514': { input: 15, output: 75 },
   'claude-3-5-sonnet-20241022': { input: 3, output: 15 },
@@ -46,7 +49,7 @@ export class AnthropicProvider implements AgentProvider {
 
   constructor(config: AnthropicProviderConfig = {}) {
     this.apiKey = config.apiKey ?? process.env.ANTHROPIC_API_KEY ?? ''
-    this.defaultModel = config.defaultModel ?? 'claude-sonnet-4-20250514'
+    this.defaultModel = config.defaultModel ?? getDefaultModelForProvider('anthropic')
 
     if (!this.apiKey) {
       throw new ProviderError(

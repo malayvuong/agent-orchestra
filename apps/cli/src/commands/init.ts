@@ -1,7 +1,10 @@
 import type { Command } from 'commander'
 import { resolve, join } from 'node:path'
 import { readFile, writeFile, mkdir, stat } from 'node:fs/promises'
+import { getDefaultModelForProvider } from '@malayvuong/agent-orchestra-providers'
 import { detectProject } from '../init/detect.js'
+import { getBuiltinSkillFiles, getBuiltinSkillsetsYaml } from '../init/builtin-skills.js'
+import { shouldRefreshAgentsConfig } from '../init/confirm.js'
 import {
   generateAgentsMd,
   generateAgentsSection,
@@ -41,6 +44,7 @@ async function fileExists(path: string): Promise<boolean> {
 async function runInit(opts: {
   path: string
   yes: boolean
+  refreshAgents: boolean
   projectType?: string
   withPolicy: boolean
   withSkillsets: boolean
@@ -121,15 +125,59 @@ async function runInit(opts: {
   // Phase B: Create .agent-orchestra/ directory
   await mkdir(orchestraDir, { recursive: true })
 
+  const builtinSkillFiles = getBuiltinSkillFiles()
+  for (const skillFile of builtinSkillFiles) {
+    const skillFilePath = join(rootPath, skillFile.relativePath)
+    const skillExists = await fileExists(skillFilePath)
+    if (skillExists && !opts.force) {
+      skipped.push(`${skillFile.relativePath} (already exists)`)
+      continue
+    }
+
+    await mkdir(join(skillFilePath, '..'), { recursive: true })
+    await writeFile(skillFilePath, skillFile.content, 'utf-8')
+    generated.push(skillFile.relativePath)
+  }
+
+  const builtinSkillsetsPath = join(orchestraDir, 'skillsets.builtin.yaml')
+  const builtinSkillsetsExists = await fileExists(builtinSkillsetsPath)
+  if (builtinSkillsetsExists && !opts.force) {
+    skipped.push('.agent-orchestra/skillsets.builtin.yaml (already exists)')
+  } else {
+    await writeFile(builtinSkillsetsPath, getBuiltinSkillsetsYaml(), 'utf-8')
+    generated.push('.agent-orchestra/skillsets.builtin.yaml')
+  }
+
   // Phase B2: Auto-generate agents.yaml based on detected providers
   const agentsYamlPath = join(orchestraDir, 'agents.yaml')
   const agentsYamlExists = await fileExists(agentsYamlPath)
+  const nextAgentsYaml = hasAnyProvider ? buildAgentsYaml(detected, apiKeys) : null
 
   if (agentsYamlExists && !opts.force) {
-    skipped.push('.agent-orchestra/agents.yaml (already exists)')
-  } else if (hasAnyProvider) {
-    const agentsYaml = buildAgentsYaml(detected, apiKeys)
-    await writeFile(agentsYamlPath, agentsYaml, 'utf-8')
+    if (!nextAgentsYaml) {
+      skipped.push('.agent-orchestra/agents.yaml (already exists)')
+    } else {
+      const existingAgentsYaml = await readFile(agentsYamlPath, 'utf-8')
+      if (normalizeConfigText(existingAgentsYaml) === normalizeConfigText(nextAgentsYaml)) {
+        skipped.push('.agent-orchestra/agents.yaml (already matches detected providers)')
+      } else {
+        const shouldRefresh = await shouldRefreshAgentsConfig({
+          refreshAgents: opts.refreshAgents,
+          yes: opts.yes,
+        })
+
+        if (shouldRefresh) {
+          await writeFile(agentsYamlPath, nextAgentsYaml, 'utf-8')
+          generated.push('.agent-orchestra/agents.yaml (refreshed)')
+        } else {
+          skipped.push(
+            '.agent-orchestra/agents.yaml (kept existing config; use --refresh-agents to replace)',
+          )
+        }
+      }
+    }
+  } else if (nextAgentsYaml) {
+    await writeFile(agentsYamlPath, nextAgentsYaml, 'utf-8')
     generated.push('.agent-orchestra/agents.yaml')
   }
 
@@ -231,13 +279,36 @@ function buildAgentsYaml(
   // Collect available providers in priority order
   const available: Array<{ provider: string; model: string }> = []
 
-  if (detected.claudeCli) available.push({ provider: 'claude-cli', model: 'sonnet' })
-  if (detected.codexCli) available.push({ provider: 'codex-cli', model: 'o4-mini' })
-  if (apiKeys.openai) available.push({ provider: 'openai', model: 'gpt-4o' })
+  if (detected.claudeCli)
+    available.push({
+      provider: 'claude-cli',
+      model: getDefaultModelForProvider('claude-cli'),
+    })
+  if (detected.codexCli)
+    available.push({
+      provider: 'codex-cli',
+      model: getDefaultModelForProvider('codex-cli'),
+    })
+  if (apiKeys.openai)
+    available.push({
+      provider: 'openai',
+      model: getDefaultModelForProvider('openai'),
+    })
   if (apiKeys.anthropic)
-    available.push({ provider: 'anthropic', model: 'claude-sonnet-4-20250514' })
-  if (apiKeys.grok) available.push({ provider: 'grok', model: 'grok-3' })
-  if (apiKeys.deepseek) available.push({ provider: 'deepseek', model: 'deepseek-chat' })
+    available.push({
+      provider: 'anthropic',
+      model: getDefaultModelForProvider('anthropic'),
+    })
+  if (apiKeys.grok)
+    available.push({
+      provider: 'grok',
+      model: getDefaultModelForProvider('grok'),
+    })
+  if (apiKeys.deepseek)
+    available.push({
+      provider: 'deepseek',
+      model: getDefaultModelForProvider('deepseek'),
+    })
 
   if (available.length === 0) return '# No providers detected. Configure manually.\n'
 
@@ -281,6 +352,10 @@ function buildAgentsYaml(
   return lines.join('\n')
 }
 
+function normalizeConfigText(content: string): string {
+  return content.trim().replace(/\r\n/g, '\n')
+}
+
 // ---------------------------------------------------------------------------
 // Registration
 // ---------------------------------------------------------------------------
@@ -296,13 +371,23 @@ export function registerInitCommand(program: Command): void {
       'Override detected project type (node-ts, python, rust, generic)',
     )
     .option('--with-policy', 'Generate a starter policy.yaml', false)
-    .option('--with-skillsets', 'Generate a starter skillsets.yaml', false)
+    .option(
+      '--with-skillsets',
+      'Generate a starter custom skillsets.yaml (built-in skillsets are always bootstrapped)',
+      false,
+    )
+    .option(
+      '--refresh-agents',
+      'Replace .agent-orchestra/agents.yaml with the currently detected provider defaults',
+      false,
+    )
     .option('--force', 'Overwrite existing generated files', false)
     .action(
       handleErrors(
         async (opts: {
           path: string
           yes: boolean
+          refreshAgents: boolean
           projectType?: string
           withPolicy: boolean
           withSkillsets: boolean

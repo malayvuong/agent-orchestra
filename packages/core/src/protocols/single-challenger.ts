@@ -88,12 +88,18 @@ export class SingleChallengerRunner implements ProtocolRunner {
       throw new Error('single_challenger protocol requires a reviewer agent')
     }
 
-    // Debate rounds config: max = 2^(agentCount+1), default = 1 (legacy behavior)
     const agentCount = job.agents.filter((a) => a.enabled).length
-    const configuredMaxDebate = job.runtimeConfig?.maxDebateRounds
-    const maxDebateRounds = configuredMaxDebate ?? 1
-    const absoluteMax = Math.pow(2, agentCount + 1)
-    const effectiveMaxDebate = Math.min(maxDebateRounds, absoluteMax)
+    const autoApplyRequested = job.runtimeConfig?.autoApply ?? false
+    const terminalReservation = 2 + (autoApplyRequested ? 1 : 0)
+    const minimumRequiredRounds = 3 + terminalReservation
+    const totalRoundBudget = this.resolveTotalRoundBudget(job, agentCount, autoApplyRequested)
+
+    if (totalRoundBudget < minimumRequiredRounds) {
+      throw new Error(
+        `single_challenger protocol requires at least ${minimumRequiredRounds} max rounds` +
+          `${autoApplyRequested ? ' when auto-apply is enabled' : ''}`,
+      )
+    }
 
     let roundIndex = 0
     const allFindings: Finding[] = []
@@ -182,7 +188,7 @@ export class SingleChallengerRunner implements ProtocolRunner {
     // -----------------------------------------------------------------------
     let debateRound = 0
 
-    while (debateRound < effectiveMaxDebate) {
+    while (roundIndex < totalRoundBudget - terminalReservation) {
       debateRound++
       this.checkCancellation(job.id, deps)
 
@@ -226,8 +232,11 @@ export class SingleChallengerRunner implements ProtocolRunner {
         )
       }
 
-      // Check if we should continue iterating
-      if (debateRound >= effectiveMaxDebate) break
+      if (roundIndex >= totalRoundBudget - terminalReservation) break
+
+      const hasBudgetForReviewerFollowup =
+        roundIndex <= totalRoundBudget - (terminalReservation + 2)
+      if (!hasBudgetForReviewerFollowup) break
 
       // --- Reviewer Follow-up ---
       this.checkCancellation(job.id, deps)
@@ -331,7 +340,7 @@ export class SingleChallengerRunner implements ProtocolRunner {
     // -----------------------------------------------------------------------
     // Apply phase: rewrite original files based on confirmed findings
     // -----------------------------------------------------------------------
-    const autoApply = job.runtimeConfig?.autoApply ?? false
+    const autoApply = autoApplyRequested
     let applySummary: ApplySummary | undefined
 
     if (autoApply && synthesisFindings.length > 0) {
@@ -370,6 +379,24 @@ export class SingleChallengerRunner implements ProtocolRunner {
       applySummary,
       failurePolicy,
     })
+  }
+
+  private resolveTotalRoundBudget(job: Job, agentCount: number, autoApply: boolean): number {
+    const configuredLegacyDebate = job.runtimeConfig?.maxDebateRounds
+    if (configuredLegacyDebate !== undefined) {
+      const absoluteLegacyMax = Math.pow(2, agentCount + 1)
+      const normalizedLegacyDebate = Math.max(1, configuredLegacyDebate)
+      const effectiveLegacyDebate = Math.min(normalizedLegacyDebate, absoluteLegacyMax)
+      return this.legacyDebateRoundsToTotalRounds(effectiveLegacyDebate, autoApply)
+    }
+
+    return job.maxRounds
+  }
+
+  private legacyDebateRoundsToTotalRounds(debateRounds: number, autoApply: boolean): number {
+    const interactiveSteps = 2 + debateRounds + (debateRounds - 1)
+    const terminalSteps = 2 + (autoApply ? 1 : 0)
+    return interactiveSteps + terminalSteps
   }
 
   /**

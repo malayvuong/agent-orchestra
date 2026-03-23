@@ -1,5 +1,8 @@
 import type { AgentAssignment, ProviderOutput } from '@malayvuong/agent-orchestra-core'
-import { detectCliProviders } from '@malayvuong/agent-orchestra-providers'
+import {
+  detectCliProviders,
+  getDefaultModelForProvider,
+} from '@malayvuong/agent-orchestra-providers'
 import type { AgentsConfig } from '../init/agents-config.js'
 
 type ProviderDescriptor = {
@@ -132,11 +135,7 @@ export async function resolveProviderPlans(
       }
 
       const resolved = providerSource
-        ? await normalizeDescriptor(
-            providerSource,
-            modelSource ?? defaultPlan.modelOrCommand,
-            getDetected,
-          )
+        ? await normalizeDescriptor(providerSource, modelSource, getDetected)
         : defaultPlan
 
       return {
@@ -188,17 +187,20 @@ async function normalizeDescriptor(
   model: string | undefined,
   getDetected: () => ReturnType<typeof detectCliProviders>,
 ): Promise<ProviderDescriptor> {
+  const normalizedModel = nonEmptyOrUndefined(model)
+
   if (provider !== 'auto') {
     return {
       providerKey: provider,
-      modelOrCommand: model ?? '',
+      modelOrCommand: normalizedModel ?? getDefaultModelForProvider(provider),
     }
   }
 
   const detected = await getDetected()
+  const resolvedProvider = detected.preferred ?? 'openai'
   return {
-    providerKey: detected.preferred ?? 'openai',
-    modelOrCommand: model ?? '',
+    providerKey: resolvedProvider,
+    modelOrCommand: normalizedModel ?? getDefaultModelForProvider(resolvedProvider),
   }
 }
 
@@ -224,26 +226,34 @@ async function createProvider(providerName: string, model: string): Promise<Prov
   }
 
   if (providerName === 'claude-cli') {
-    return new providers.ClaudeCliProvider({ defaultModel: model })
+    return new providers.ClaudeCliProvider({
+      defaultModel: model || providers.getDefaultModelForProvider('claude-cli'),
+    })
   }
 
   if (providerName === 'codex-cli') {
-    return new providers.CodexCliProvider({ defaultModel: model })
+    return new providers.CodexCliProvider({
+      defaultModel: model || providers.getDefaultModelForProvider('codex-cli'),
+    })
   }
 
   if (providerName === 'openai') {
-    return new providers.OpenAIProvider({ defaultModel: model })
+    return new providers.OpenAIProvider({
+      defaultModel: model || providers.getDefaultModelForProvider('openai'),
+    })
   }
 
   if (providerName === 'anthropic') {
-    return new providers.AnthropicProvider({ defaultModel: model })
+    return new providers.AnthropicProvider({
+      defaultModel: model || providers.getDefaultModelForProvider('anthropic'),
+    })
   }
 
   if (providerName === 'grok') {
     return new providers.OpenAIProvider({
       apiKey: process.env.XAI_API_KEY ?? process.env.GROK_API_KEY,
       baseUrl: 'https://api.x.ai',
-      defaultModel: model || 'grok-3',
+      defaultModel: model || providers.getDefaultModelForProvider('grok'),
     })
   }
 
@@ -251,7 +261,7 @@ async function createProvider(providerName: string, model: string): Promise<Prov
     return new providers.OpenAIProvider({
       apiKey: process.env.DEEPSEEK_API_KEY,
       baseUrl: 'https://api.deepseek.com',
-      defaultModel: model || 'deepseek-chat',
+      defaultModel: model || providers.getDefaultModelForProvider('deepseek'),
     })
   }
 

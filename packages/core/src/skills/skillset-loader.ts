@@ -5,7 +5,10 @@ import type { SkillSet, SkillDefinition } from './types.js'
 
 /** Spec Task 1.6 — SkillSet Loader */
 
-const SKILLSETS_FILE = '.agent-orchestra/skillsets.yaml'
+const SKILLSETS_FILES = [
+  '.agent-orchestra/skillsets.builtin.yaml',
+  '.agent-orchestra/skillsets.yaml',
+] as const
 const DEFAULT_CONTEXT_BUDGET_PERCENT = 20
 
 /** Logger interface for warnings and errors */
@@ -44,8 +47,25 @@ export class SkillSetLoader {
    * Returns an empty array with a warning if the file is invalid YAML.
    */
   async load(workspacePath: string): Promise<SkillSet[]> {
-    const filePath = join(workspacePath, SKILLSETS_FILE)
+    const merged = new Map<string, SkillSet>()
 
+    for (const relativePath of SKILLSETS_FILES) {
+      const filePath = join(workspacePath, relativePath)
+      const loaded = await this.loadSingleFile(filePath)
+      for (const skillSet of loaded) {
+        if (merged.has(skillSet.id)) {
+          this.logger?.warn(
+            `Duplicate skillset ID "${skillSet.id}" found while loading "${filePath}" — later definition wins`,
+          )
+        }
+        merged.set(skillSet.id, skillSet)
+      }
+    }
+
+    return [...merged.values()]
+  }
+
+  private async loadSingleFile(filePath: string): Promise<SkillSet[]> {
     let rawContent: string
     try {
       rawContent = await readFile(filePath, 'utf-8')
@@ -53,10 +73,8 @@ export class SkillSetLoader {
       const isNodeError = (e: unknown): e is NodeJS.ErrnoException =>
         e instanceof Error && 'code' in e
       if (isNodeError(err) && err.code === 'ENOENT') {
-        // File does not exist — not an error
         return []
       }
-      // Other read errors — warn and return empty
       this.logger?.warn(`Failed to read skillsets file "${filePath}": ${String(err)}`)
       return []
     }

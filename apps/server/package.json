@@ -1,6 +1,6 @@
 {
   "name": "@malayvuong/agent-orchestra-server",
-  "version": "2026.3.2",
+  "version": "2026.3.4",
   "description": "Agent Orchestra server — API and web dashboard",
   "license": "MIT",
   "private": true,

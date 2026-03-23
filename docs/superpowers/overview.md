@@ -76,7 +76,7 @@ The `--superpower` flag activates the preset. The superpower's settings become t
 
 ```bash
 # Use the security-review superpower but override the provider and model
-agent-orchestra run --target src/ --superpower security-review --provider anthropic --model claude-sonnet-4-20250514
+agent-orchestra run --target src/ --superpower security-review --provider anthropic --model claude-sonnet-4-6
 
 # Use a superpower but override the lens
 agent-orchestra run --target src/ --superpower test-generation --lens regression

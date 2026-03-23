@@ -2422,7 +2422,7 @@ agent-orchestra create \
 | `--exclude` | no | yes | Path to exclude from scope |
 | `--agent` | yes | yes | Agent registry ID (from `agent:list`). Can be repeated |
 | `--protocol` | no | no | Override auto-selected protocol |
-| `--max-rounds` | no | no | Default: 2 |
+| `--max-rounds` | no | no | Default: 10 |
 
 ### 47.2 `agent:add`
 

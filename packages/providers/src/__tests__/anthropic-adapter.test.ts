@@ -100,7 +100,7 @@ describe('AnthropicProvider', () => {
       expect(body.messages[0].role).toBe('user')
     })
 
-    it('should use default model when not specified', async () => {
+    it('should use Claude Sonnet 4.6 as the default model when not specified', async () => {
       const mockFetch = vi.fn().mockResolvedValue(
         mockResponse({
           content: [{ type: 'text', text: 'response' }],
@@ -110,10 +110,7 @@ describe('AnthropicProvider', () => {
       )
       globalThis.fetch = mockFetch
 
-      const provider = new AnthropicProvider({
-        apiKey: 'key',
-        defaultModel: 'claude-3-haiku-20240307',
-      })
+      const provider = new AnthropicProvider({ apiKey: 'key' })
       await provider.run({
         systemPrompt: 'sys',
         userPrompt: 'user',
@@ -121,7 +118,7 @@ describe('AnthropicProvider', () => {
       })
 
       const body = JSON.parse(mockFetch.mock.calls[0][1].body)
-      expect(body.model).toBe('claude-3-haiku-20240307')
+      expect(body.model).toBe('claude-sonnet-4-6')
     })
 
     it('should add warning when response is truncated', async () => {

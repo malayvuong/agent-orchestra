@@ -68,7 +68,7 @@ export type JobRuntimeConfig = {
   /** Percentage of context budget allocated to skills (0-100, default: 20) (Task 1.1) */
   skillBudgetPercent?: number
 
-  /** Max iterative debate rounds. Default 1 (legacy). Cap: 2^(agentCount+1). */
+  /** Deprecated legacy control expressed as debate cycles instead of persisted protocol steps. */
   maxDebateRounds?: number
 
   /** Auto-apply confirmed findings to original files. Default: false. */

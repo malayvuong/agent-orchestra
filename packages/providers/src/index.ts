@@ -12,6 +12,7 @@ export type { CodexCliProviderConfig } from './cli/index.js'
 
 export { detectCliProviders, isCommandAvailable } from './cli/index.js'
 export type { DetectedProviders } from './cli/index.js'
+export { getDefaultModelForProvider } from './default-models.js'
 
 export { ProviderRouter } from './router.js'
 

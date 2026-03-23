@@ -3,7 +3,7 @@
   "private": true,
   "license": "MIT",
   "type": "module",
-  "version": "2026.3.2",
+  "version": "2026.3.4",
   "packageManager": "pnpm@9.15.4",
   "engines": {
     "node": ">=20.0.0"
@@ -13,6 +13,8 @@
     "dev": "tsx apps/cli/src/index.ts",
     "dev:cli": "tsx apps/cli/src/index.ts",
     "dev:server": "pnpm --filter @malayvuong/agent-orchestra-server dev",
+    "link:ao": "pnpm --dir apps/cli run build && node scripts/link-local-cli.mjs",
+    "unlink:ao": "node scripts/unlink-local-cli.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "eslint .",

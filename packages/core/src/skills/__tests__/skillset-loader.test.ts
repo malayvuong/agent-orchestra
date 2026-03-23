@@ -26,6 +26,12 @@ async function writeSkillsetsYaml(workspacePath: string, content: string): Promi
   await writeFile(join(dir, 'skillsets.yaml'), content, 'utf-8')
 }
 
+async function writeBuiltinSkillsetsYaml(workspacePath: string, content: string): Promise<void> {
+  const dir = join(workspacePath, '.agent-orchestra')
+  await mkdir(dir, { recursive: true })
+  await writeFile(join(dir, 'skillsets.builtin.yaml'), content, 'utf-8')
+}
+
 /** Build a minimal SkillDefinition for testing */
 function makeSkill(id: string): SkillDefinition {
   return {
@@ -114,6 +120,56 @@ describe('SkillSetLoader.load — valid YAML', () => {
 
     const testing = result.find((s) => s.id === 'testing')
     expect(testing!.contextBudgetPercent).toBe(15)
+  })
+})
+
+describe('SkillSetLoader.load — built-in skillsets', () => {
+  it('loads built-in skillsets when the workspace has no custom skillsets file', async () => {
+    await writeBuiltinSkillsetsYaml(
+      tmpDir,
+      `skillsets:
+  - id: plan-review
+    name: Plan Review
+    description: Built-in plan review skillset
+    skills:
+      - sequencing-check
+    contextBudgetPercent: 30
+`,
+    )
+
+    const loader = new SkillSetLoader()
+    const result = await loader.load(tmpDir)
+
+    expect(result).toHaveLength(1)
+    expect(result[0]?.id).toBe('plan-review')
+  })
+
+  it('merges built-in and custom skillsets from separate files', async () => {
+    await writeBuiltinSkillsetsYaml(
+      tmpDir,
+      `skillsets:
+  - id: plan-review
+    name: Plan Review
+    description: Built-in plan review skillset
+    skills:
+      - sequencing-check
+`,
+    )
+    await writeSkillsetsYaml(
+      tmpDir,
+      `skillsets:
+  - id: custom-pack
+    name: Custom Pack
+    description: User-defined skillset
+    skills:
+      - custom-skill
+`,
+    )
+
+    const loader = new SkillSetLoader()
+    const result = await loader.load(tmpDir)
+
+    expect(result.map((skillset) => skillset.id).sort()).toEqual(['custom-pack', 'plan-review'])
   })
 })
 

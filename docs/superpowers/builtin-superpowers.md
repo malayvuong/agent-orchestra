@@ -112,7 +112,7 @@ All superpowers accept CLI overrides. The explicit flag always wins:
 
 ```bash
 # Use security-review but with Anthropic instead of the default provider
-agent-orchestra run --target src/ --superpower security-review --provider anthropic --model claude-sonnet-4-20250514
+agent-orchestra run --target src/ --superpower security-review --provider anthropic --model claude-sonnet-4-6
 
 # Use test-generation but focus on regression testing specifically
 agent-orchestra run --target src/ --superpower test-generation --lens regression

@@ -1,5 +1,6 @@
 import { spawn } from 'node:child_process'
 import type { ProviderOutput } from '@malayvuong/agent-orchestra-core'
+import { getDefaultModelForProvider } from '@malayvuong/agent-orchestra-shared'
 import type { AgentProvider, ProviderInput } from '../types.js'
 import { ProviderError } from '../types.js'
 
@@ -12,7 +13,7 @@ const DEFAULT_TIMEOUT_MS = 900_000
 export type ClaudeCliProviderConfig = {
   /** Path to the claude binary; defaults to 'claude' (from PATH) */
   command?: string
-  /** Default model; defaults to 'sonnet' */
+  /** Default model; defaults to 'claude-opus-4-6' */
   defaultModel?: string
 }
 
@@ -30,7 +31,7 @@ export class ClaudeCliProvider implements AgentProvider {
 
   constructor(config: ClaudeCliProviderConfig = {}) {
     this.command = config.command ?? 'claude'
-    this.defaultModel = config.defaultModel ?? 'sonnet'
+    this.defaultModel = config.defaultModel ?? getDefaultModelForProvider('claude-cli')
   }
 
   async run(input: ProviderInput): Promise<ProviderOutput> {

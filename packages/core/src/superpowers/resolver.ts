@@ -1,4 +1,5 @@
 import type { AgentAssignment, AgentLens } from '../types/agent.js'
+import { getDefaultModelForProvider } from '@malayvuong/agent-orchestra-shared'
 import type { SkillLoader } from '../skills/loader.js'
 import type { SkillSetLoader } from '../skills/skillset-loader.js'
 import type { Superpower, ResolvedSuperpower } from './types.js'
@@ -255,7 +256,11 @@ export class SuperpowerResolver {
     // --- Architect assignment ---
     if (preset.architect?.enabled) {
       const architectProvider = overrides?.provider ?? preset.architect.provider ?? 'openai'
-      const architectModel = overrides?.model ?? preset.architect.model ?? 'gpt-4o'
+      const architectModel =
+        overrides?.model ??
+        (overrides?.provider
+          ? getDefaultModelForProvider(architectProvider)
+          : (preset.architect.model ?? getDefaultModelForProvider(architectProvider)))
 
       const architectAssignment: AgentAssignment = {
         id: `${superpower.id}-architect`,
@@ -276,7 +281,11 @@ export class SuperpowerResolver {
     // --- Reviewer assignment(s) ---
     const reviewerLens = overrides?.lens ?? preset.reviewer.lens
     const reviewerProvider = overrides?.provider ?? preset.reviewer.provider ?? 'openai'
-    const reviewerModel = overrides?.model ?? preset.reviewer.model ?? 'gpt-4o'
+    const reviewerModel =
+      overrides?.model ??
+      (overrides?.provider
+        ? getDefaultModelForProvider(reviewerProvider)
+        : (preset.reviewer.model ?? getDefaultModelForProvider(reviewerProvider)))
     const reviewerCount = overrides?.reviewerCount ?? preset.reviewer.count ?? 1
 
     if (reviewerCount > 1) {

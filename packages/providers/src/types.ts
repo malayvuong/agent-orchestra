@@ -11,7 +11,7 @@ export type ProviderInput = {
   systemPrompt: string
   /** User-facing prompt content */
   userPrompt: string
-  /** Model identifier (e.g. 'gpt-4o', 'claude-sonnet-4-20250514') */
+  /** Model identifier (e.g. 'gpt-5.4', 'claude-sonnet-4-6') */
   model: string
   /** Maximum tokens to generate */
   maxTokens?: number

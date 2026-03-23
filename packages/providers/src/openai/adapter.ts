@@ -1,9 +1,11 @@
 import type { ProviderOutput } from '@malayvuong/agent-orchestra-core'
+import { getDefaultModelForProvider } from '@malayvuong/agent-orchestra-shared'
 import type { AgentProvider, ProviderInput } from '../types.js'
 import { ProviderError } from '../types.js'
 
 /** Pricing per 1M tokens (USD) for common OpenAI models */
 const MODEL_PRICING: Record<string, { input: number; output: number }> = {
+  'gpt-5.4': { input: 2.5, output: 10 },
   'gpt-4o': { input: 2.5, output: 10 },
   'gpt-4o-mini': { input: 0.15, output: 0.6 },
   'gpt-4-turbo': { input: 10, output: 30 },
@@ -43,7 +45,7 @@ export class OpenAIProvider implements AgentProvider {
   constructor(config: OpenAIProviderConfig = {}) {
     this.apiKey = config.apiKey ?? process.env.OPENAI_API_KEY ?? ''
     this.baseUrl = (config.baseUrl ?? 'https://api.openai.com').replace(/\/+$/, '')
-    this.defaultModel = config.defaultModel ?? 'gpt-4o'
+    this.defaultModel = config.defaultModel ?? getDefaultModelForProvider('openai')
 
     if (!this.apiKey) {
       throw new ProviderError(

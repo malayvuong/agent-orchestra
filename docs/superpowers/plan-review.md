@@ -12,22 +12,43 @@ The `plan-review` superpower reviews implementation plans, roadmaps, RFCs, and p
 
 ## Usage
 
+Install the CLI first if you have not already:
+
+```bash
+npm install -g @malayvuong/agent-orchestra
+```
+
 ```bash
 # Review a plan file
-agent-orchestra run --target ./docs/phase-plan.md --superpower plan-review
+ao run --target ./docs/phase-plan.md --superpower plan-review
 
 # Iterative debate — architect and reviewer go back and forth until convergence
-agent-orchestra run --target ./docs/plan.md --superpower plan-review --debate-rounds 3
+ao run --target ./docs/plan.md --superpower plan-review --max-rounds 10
 
 # Review + auto-apply fixes to the original file
-agent-orchestra run --target ./docs/plan.md --superpower plan-review --debate-rounds 2 --auto-apply
+ao run --target ./docs/plan.md --superpower plan-review --max-rounds 10 --auto-apply
 
 # Use specific providers for each agent
-agent-orchestra run --target ./plan.md --superpower plan-review \
+ao run --target ./plan.md --superpower plan-review \
   --architect-provider codex-cli --reviewer-provider claude-cli
 
 # With a custom brief to focus the review
-agent-orchestra run --target ./rfc-auth.md --superpower plan-review --brief "Focus on Phase 2 dependencies"
+ao run --target ./rfc-auth.md --superpower plan-review --brief "Focus on Phase 2 dependencies"
+```
+
+### Provider defaults
+
+If you let Agent Orchestra auto-resolve providers, review runs default to:
+
+- `claude-cli` -> `claude-opus-4-6`
+- `codex-cli` -> `gpt-5.4`
+- `openai` -> `gpt-5.4`
+- `anthropic` -> `claude-sonnet-4-6`
+
+If your workspace was initialized before these defaults changed, run:
+
+```bash
+ao init --refresh-agents
 ```
 
 ## When To Use It
@@ -52,12 +73,14 @@ The `plan-review` superpower uses the `single_challenger` protocol with iterativ
 6. **Synthesis** — all findings are deduplicated and prioritized
 7. **Auto-apply** (if `--auto-apply`) — architect rewrites the original file incorporating all confirmed fixes
 
-### Debate rounds
+### Max rounds
 
-- `--debate-rounds 1` — single round (default, legacy behavior: analysis → review → rebuttal → synthesis)
-- `--debate-rounds 2` — two iterative cycles (recommended for most plans)
-- `--debate-rounds 3` — three cycles (for complex plans with many dependencies)
-- Maximum cap: `2^(agents+1)` — prevents runaway debates
+`round` here means one persisted protocol step, not a pair of agent turns.
+
+- `--max-rounds 5` — minimal end-to-end pass: analysis → review → rebuttal → convergence → final_check
+- `--max-rounds 7` — adds one reviewer follow-up and a second architect response
+- `--max-rounds 10` — default and recommended for plan/spec review with sustained back-and-forth
+- Legacy `--debate-rounds` still works as a deprecated alias, but `--max-rounds` is the canonical control now
 
 The debate **converges naturally** — if the reviewer finds 0 new issues, iteration stops early regardless of the configured max.
 
@@ -95,5 +118,5 @@ Plan review produces findings in the standard format, but with plan-appropriate 
 | Skill budget | 30% |
 | Approval required | No |
 | Capabilities | None (prompt-only) |
-| Recommended debate rounds | 2-3 |
+| Recommended max rounds | 7-10 |
 | Auto-apply | Supported (rewrites plan with fixes) |
