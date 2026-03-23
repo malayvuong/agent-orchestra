@@ -1,6 +1,6 @@
 {
   "name": "@malayvuong/agent-orchestra-shared",
-  "version": "2026.3.1",
+  "version": "2026.3.2",
   "description": "Shared constants, errors, and utilities for Agent Orchestra",
   "license": "MIT",
   "type": "module",
@@ -23,6 +23,13 @@
     "type": "git",
     "url": "https://github.com/nicemvp/agent-orchestra.git",
     "directory": "packages/shared"
+  },
+  "homepage": "https://github.com/nicemvp/agent-orchestra#readme",
+  "bugs": {
+    "url": "https://github.com/nicemvp/agent-orchestra/issues"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "keywords": [
     "agent",

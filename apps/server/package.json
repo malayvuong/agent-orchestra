@@ -1,8 +1,9 @@
 {
   "name": "@malayvuong/agent-orchestra-server",
-  "version": "2026.3.1",
+  "version": "2026.3.2",
   "description": "Agent Orchestra server — API and web dashboard",
   "license": "MIT",
+  "private": true,
   "type": "module",
   "scripts": {
     "dev": "tsx --watch src/index.ts",

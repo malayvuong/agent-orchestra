@@ -5,5 +5,5 @@ export default defineConfig({
   format: ['esm'],
   dts: { compilerOptions: { composite: false } },
   clean: true,
-  sourcemap: true,
+  sourcemap: false,
 })

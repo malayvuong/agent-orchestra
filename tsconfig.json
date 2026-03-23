@@ -3,6 +3,8 @@
   "references": [
     { "path": "packages/shared" },
     { "path": "packages/core" },
+    { "path": "packages/providers" },
+    { "path": "packages/registry" },
     { "path": "apps/cli" },
     { "path": "apps/server" }
   ]

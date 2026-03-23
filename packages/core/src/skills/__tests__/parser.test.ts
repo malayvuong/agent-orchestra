@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { AGENT_ORCHESTRA_VERSION } from '@malayvuong/agent-orchestra-shared'
 import { SkillParser } from '../parser.js'
 import type { TokenEstimator } from '../../interfaces/token-estimator.js'
 import type { SkillParseError } from '../types.js'
@@ -243,7 +244,7 @@ describe('SkillParser.parse', () => {
     expect(skill.id).toBe('minimal-skill')
     expect(skill.name).toBe('minimal-skill')
     expect(skill.description).toBe('A minimal skill with only the required fields')
-    expect(skill.version).toBe('2026.3.1') // default
+    expect(skill.version).toBe(AGENT_ORCHESTRA_VERSION) // default
     expect(skill.skillType).toBe('prompt')
     expect(skill.source).toEqual({ type: 'local', path: '/path/to/minimal.skill.md' })
     expect(skill.license).toBeUndefined()
@@ -369,7 +370,7 @@ describe('SkillParser.parse', () => {
     const raw = `---\nname: versionless\ndescription: No version field\n---\nbody`
     const result = parser.parse('/test.skill.md', raw)
     expect(isParseResult(result)).toBe(true)
-    expect((result as SkillParseResult).skill.version).toBe('2026.3.1')
+    expect((result as SkillParseResult).skill.version).toBe(AGENT_ORCHESTRA_VERSION)
   })
 
   it('rejects semver versions in skill frontmatter', () => {

@@ -28,6 +28,12 @@ jobs:
       - name: Build all packages
         run: pnpm build
 
+      - name: Typecheck workspace
+        run: pnpm typecheck
+
+      - name: Lint workspace
+        run: pnpm lint
+
       - name: Run tests
         run: pnpm test
 

@@ -1,6 +1,6 @@
 {
   "name": "@malayvuong/agent-orchestra-providers",
-  "version": "2026.3.1",
+  "version": "2026.3.2",
   "description": "LLM provider adapters for Agent Orchestra",
   "license": "MIT",
   "type": "module",
@@ -18,6 +18,18 @@
   "sideEffects": false,
   "engines": {
     "node": ">=20.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nicemvp/agent-orchestra.git",
+    "directory": "packages/providers"
+  },
+  "homepage": "https://github.com/nicemvp/agent-orchestra#readme",
+  "bugs": {
+    "url": "https://github.com/nicemvp/agent-orchestra/issues"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "scripts": {
     "build": "tsup",
