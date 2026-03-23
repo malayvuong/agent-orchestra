@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
@@ -69,6 +69,7 @@ describe('FileJobStore', () => {
   })
 
   afterEach(async () => {
+    vi.useRealTimers()
     await rm(baseDir, { recursive: true, force: true })
   })
 
@@ -110,6 +111,19 @@ describe('FileJobStore', () => {
     // Verify persistence
     const loaded = await store.load(created.id)
     expect(loaded!.status).toBe('running')
+  })
+
+  it('should advance updatedAt even when status update lands in the same millisecond', async () => {
+    vi.useFakeTimers()
+    const now = new Date('2026-03-23T01:27:34.894Z')
+    vi.setSystemTime(now)
+
+    const created = await store.create(jobPartial)
+
+    vi.setSystemTime(now)
+    const updated = await store.updateStatus(created.id, 'running')
+
+    expect(Date.parse(updated.updatedAt)).toBeGreaterThan(Date.parse(created.updatedAt))
   })
 
   it('should throw when updating status of a non-existent job', async () => {

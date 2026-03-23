@@ -17,7 +17,7 @@ export class FileJobStore implements JobStore {
 
   /** Create a new job with generated UUID and 'draft' status. */
   async create(partial: Omit<Job, 'id' | 'createdAt' | 'updatedAt' | 'status'>): Promise<Job> {
-    const now = new Date().toISOString()
+    const now = this.nextTimestamp()
     const job: Job = {
       ...partial,
       id: randomUUID(),
@@ -49,7 +49,7 @@ export class FileJobStore implements JobStore {
     }
 
     job.status = status
-    job.updatedAt = new Date().toISOString()
+    job.updatedAt = this.nextTimestamp(job.updatedAt)
     await this.save(job)
     return job
   }
@@ -92,5 +92,17 @@ export class FileJobStore implements JobStore {
   /** Get the file path for a job's JSON file. */
   private jobFilePath(jobId: string): string {
     return join(this.jobDir(jobId), 'job.json')
+  }
+
+  /** Ensure persisted timestamps always move forward, even within one millisecond. */
+  private nextTimestamp(previousIso?: string): string {
+    const nowMs = Date.now()
+    if (!previousIso) {
+      return new Date(nowMs).toISOString()
+    }
+
+    const previousMs = Date.parse(previousIso)
+    const nextMs = Number.isNaN(previousMs) ? nowMs : Math.max(nowMs, previousMs + 1)
+    return new Date(nextMs).toISOString()
   }
 }
