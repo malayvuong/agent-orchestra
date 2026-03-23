@@ -38,7 +38,7 @@ if (npmView.status === 0) {
   process.exit(0)
 }
 
-const publishArgs = ['--dir', packageDir, 'publish', '--no-git-checks', '--registry', registryUrl]
+const publishArgs = ['publish', '--no-git-checks', '--registry', registryUrl]
 if (access) {
   publishArgs.push('--access', access)
 }
@@ -48,6 +48,7 @@ globalThis.console.log(`Publishing ${packageSpec} to ${registryUrl}...`)
 const publish = spawnSync('pnpm', publishArgs, {
   stdio: 'inherit',
   env: process.env,
+  cwd: packageDir,
 })
 
 process.exit(publish.status ?? 1)
