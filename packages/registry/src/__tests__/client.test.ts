@@ -13,7 +13,7 @@ function makeSkillEntry(overrides: Partial<RegistrySkillEntry> = {}): RegistrySk
   return {
     id: 'test-skill',
     name: 'Test Skill',
-    version: '1.0.0',
+    version: '2026.3.1',
     description: 'A test skill for unit tests',
     skillType: 'prompt',
     license: 'MIT',
@@ -339,50 +339,50 @@ describe('RegistryClient', () => {
   describe('checkUpdates', () => {
     it('detects newer version available', async () => {
       const index = makeRegistryIndex([
-        makeSkillEntry({ id: 'skill-a', version: '2.0.0' }),
-        makeSkillEntry({ id: 'skill-b', version: '1.5.0' }),
+        makeSkillEntry({ id: 'skill-a', version: '2026.4.1' }),
+        makeSkillEntry({ id: 'skill-b', version: '2026.3.5' }),
       ])
       await seedCache(index)
       const client = createCachedClient()
 
       const updates = await client.checkUpdates([
-        { skillId: 'skill-a', version: '1.0.0' },
-        { skillId: 'skill-b', version: '1.0.0' },
+        { skillId: 'skill-a', version: '2026.3.1' },
+        { skillId: 'skill-b', version: '2026.3.1' },
       ])
 
       expect(updates).toHaveLength(2)
       expect(updates).toEqual(
         expect.arrayContaining([
-          { skillId: 'skill-a', currentVersion: '1.0.0', latestVersion: '2.0.0' },
-          { skillId: 'skill-b', currentVersion: '1.0.0', latestVersion: '1.5.0' },
+          { skillId: 'skill-a', currentVersion: '2026.3.1', latestVersion: '2026.4.1' },
+          { skillId: 'skill-b', currentVersion: '2026.3.1', latestVersion: '2026.3.5' },
         ]),
       )
     })
 
     it('returns empty when all up to date', async () => {
       const index = makeRegistryIndex([
-        makeSkillEntry({ id: 'skill-a', version: '1.0.0' }),
-        makeSkillEntry({ id: 'skill-b', version: '2.0.0' }),
+        makeSkillEntry({ id: 'skill-a', version: '2026.3.1' }),
+        makeSkillEntry({ id: 'skill-b', version: '2026.4.1' }),
       ])
       await seedCache(index)
       const client = createCachedClient()
 
       const updates = await client.checkUpdates([
-        { skillId: 'skill-a', version: '1.0.0' },
-        { skillId: 'skill-b', version: '2.0.0' },
+        { skillId: 'skill-a', version: '2026.3.1' },
+        { skillId: 'skill-b', version: '2026.4.1' },
       ])
 
       expect(updates).toHaveLength(0)
     })
 
     it('ignores skills not found in registry', async () => {
-      const index = makeRegistryIndex([makeSkillEntry({ id: 'skill-a', version: '2.0.0' })])
+      const index = makeRegistryIndex([makeSkillEntry({ id: 'skill-a', version: '2026.4.1' })])
       await seedCache(index)
       const client = createCachedClient()
 
       const updates = await client.checkUpdates([
-        { skillId: 'skill-a', version: '1.0.0' },
-        { skillId: 'unknown-skill', version: '1.0.0' },
+        { skillId: 'skill-a', version: '2026.3.1' },
+        { skillId: 'unknown-skill', version: '2026.3.1' },
       ])
 
       expect(updates).toHaveLength(1)
@@ -390,28 +390,38 @@ describe('RegistryClient', () => {
     })
 
     it('handles installed version newer than registry (no downgrade)', async () => {
-      const index = makeRegistryIndex([makeSkillEntry({ id: 'skill-a', version: '1.0.0' })])
+      const index = makeRegistryIndex([makeSkillEntry({ id: 'skill-a', version: '2026.3.1' })])
       await seedCache(index)
       const client = createCachedClient()
 
-      const updates = await client.checkUpdates([{ skillId: 'skill-a', version: '2.0.0' }])
+      const updates = await client.checkUpdates([{ skillId: 'skill-a', version: '2026.4.1' }])
 
       expect(updates).toHaveLength(0)
     })
 
     it('picks the highest version among multiple registry entries', async () => {
       const index = makeRegistryIndex([
-        makeSkillEntry({ id: 'skill-a', version: '1.0.0' }),
-        makeSkillEntry({ id: 'skill-a', version: '3.0.0' }),
-        makeSkillEntry({ id: 'skill-a', version: '2.0.0' }),
+        makeSkillEntry({ id: 'skill-a', version: '2026.3.1' }),
+        makeSkillEntry({ id: 'skill-a', version: '2026.10.1' }),
+        makeSkillEntry({ id: 'skill-a', version: '2026.4.8' }),
       ])
       await seedCache(index)
       const client = createCachedClient()
 
-      const updates = await client.checkUpdates([{ skillId: 'skill-a', version: '1.5.0' }])
+      const updates = await client.checkUpdates([{ skillId: 'skill-a', version: '2026.4.1' }])
 
       expect(updates).toHaveLength(1)
-      expect(updates[0].latestVersion).toBe('3.0.0')
+      expect(updates[0].latestVersion).toBe('2026.10.1')
+    })
+
+    it('treats zero-padded versions as invalid input', async () => {
+      const index = makeRegistryIndex([makeSkillEntry({ id: 'skill-a', version: '2026.3.1' })])
+      await seedCache(index)
+      const client = createCachedClient()
+
+      await expect(
+        client.checkUpdates([{ skillId: 'skill-a', version: '2026.03.1' }]),
+      ).rejects.toThrow('not a valid CalVer')
     })
   })
 })

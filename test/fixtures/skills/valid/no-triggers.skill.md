@@ -1,7 +1,7 @@
 ---
 name: always-on-style-guide
 description: Code style guidelines applied to every review session
-version: 0.9.0
+version: 2026.2.9
 license: Apache-2.0
 ---
 

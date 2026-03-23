@@ -9,7 +9,7 @@ let workspacePath: string
 
 function makeLockfileEntry(overrides: Partial<LockfileEntry> = {}): LockfileEntry {
   return {
-    version: '1.0.0',
+    version: '2026.3.1',
     source: 'local',
     path: '.agent-orchestra/skills/test-skill',
     checksum: { algorithm: 'sha256', digest: 'abc123def456' },
@@ -40,14 +40,28 @@ describe('LockfileManager', () => {
     it('reads a valid lockfile', async () => {
       await writeFile(
         join(workspacePath, 'skills.lock'),
-        `lockfileVersion: 1\ngeneratedAt: "2026-01-01T00:00:00Z"\nskills:\n  test-skill:\n    version: "1.0.0"\n    source: local\n    path: .agent-orchestra/skills/test-skill\n    checksum:\n      algorithm: sha256\n      digest: abc123\n    installedAt: "2026-01-01T00:00:00Z"\n`,
+        `lockfileVersion: 1\ngeneratedAt: "2026-01-01T00:00:00Z"\nskills:\n  test-skill:\n    version: "2026.3.1"\n    source: local\n    path: .agent-orchestra/skills/test-skill\n    checksum:\n      algorithm: sha256\n      digest: abc123\n    installedAt: "2026-01-01T00:00:00Z"\n`,
       )
       const manager = new LockfileManager(workspacePath)
       const lockfile = await manager.read()
       expect(lockfile).not.toBeNull()
       expect(lockfile!.lockfileVersion).toBe(1)
       expect(lockfile!.skills['test-skill']).toBeDefined()
-      expect(lockfile!.skills['test-skill'].version).toBe('1.0.0')
+      expect(lockfile!.skills['test-skill'].version).toBe('2026.3.1')
+    })
+
+    it('returns null for lockfiles with semver skill versions', async () => {
+      await writeFile(
+        join(workspacePath, 'skills.lock'),
+        `lockfileVersion: 1\ngeneratedAt: "2026-01-01T00:00:00Z"\nskills:\n  test-skill:\n    version: "1.0.0"\n    source: local\n    path: .agent-orchestra/skills/test-skill\n    checksum:\n      algorithm: sha256\n      digest: abc123\n    installedAt: "2026-01-01T00:00:00Z"\n`,
+      )
+      const warnings: string[] = []
+      const manager = new LockfileManager(workspacePath, {
+        warn: (msg) => warnings.push(msg),
+        error: () => {},
+      })
+      expect(await manager.read()).toBeNull()
+      expect(warnings.some((w) => w.includes('valid CalVer'))).toBe(true)
     })
 
     it('returns null for invalid YAML', async () => {
@@ -94,16 +108,16 @@ describe('LockfileManager', () => {
   describe('upsert', () => {
     it('adds a new skill entry', async () => {
       const manager = new LockfileManager(workspacePath)
-      await manager.upsert('new-skill', makeLockfileEntry({ version: '2.0.0' }))
+      await manager.upsert('new-skill', makeLockfileEntry({ version: '2026.4.1' }))
 
       const lockfile = await manager.read()
       expect(lockfile!.skills['new-skill']).toBeDefined()
-      expect(lockfile!.skills['new-skill'].version).toBe('2.0.0')
+      expect(lockfile!.skills['new-skill'].version).toBe('2026.4.1')
     })
 
     it('does not overwrite pinned skills', async () => {
       const manager = new LockfileManager(workspacePath)
-      await manager.upsert('pinned-skill', makeLockfileEntry({ pinned: true, version: '1.0.0' }))
+      await manager.upsert('pinned-skill', makeLockfileEntry({ pinned: true, version: '2026.3.1' }))
 
       const warnings: string[] = []
       const manager2 = new LockfileManager(workspacePath, {
@@ -111,10 +125,10 @@ describe('LockfileManager', () => {
         error: () => {},
       })
       manager2.clearCache()
-      await manager2.upsert('pinned-skill', makeLockfileEntry({ version: '2.0.0' }))
+      await manager2.upsert('pinned-skill', makeLockfileEntry({ version: '2026.4.1' }))
 
       const lockfile = await manager2.read()
-      expect(lockfile!.skills['pinned-skill'].version).toBe('1.0.0')
+      expect(lockfile!.skills['pinned-skill'].version).toBe('2026.3.1')
       expect(warnings.some((w) => w.includes('pinned'))).toBe(true)
     })
   })

@@ -52,7 +52,7 @@ describe('SkillParser.parseFrontmatter', () => {
     const raw = `---
 name: my-skill
 description: A test skill
-version: 1.0.0
+version: 2026.3.1
 ---
 body here`
     const result = parser.parseFrontmatter(raw)
@@ -60,7 +60,7 @@ body here`
     const fm = result as Record<string, unknown>
     expect(fm['name']).toBe('my-skill')
     expect(fm['description']).toBe('A test skill')
-    expect(fm['version']).toBe('1.0.0')
+    expect(fm['version']).toBe('2026.3.1')
   })
 
   it('returns parse_error when --- opening delimiter is missing', () => {
@@ -100,7 +100,7 @@ body here`
     const raw = `---
 name: full-skill
 description: Full description
-version: 2.0.0
+version: 2026.4.1
 license: MIT
 compatibility:
   agentOrchestra: ">=1.3.0"
@@ -243,7 +243,7 @@ describe('SkillParser.parse', () => {
     expect(skill.id).toBe('minimal-skill')
     expect(skill.name).toBe('minimal-skill')
     expect(skill.description).toBe('A minimal skill with only the required fields')
-    expect(skill.version).toBe('0.0.0') // default
+    expect(skill.version).toBe('2026.3.1') // default
     expect(skill.skillType).toBe('prompt')
     expect(skill.source).toEqual({ type: 'local', path: '/path/to/minimal.skill.md' })
     expect(skill.license).toBeUndefined()
@@ -261,7 +261,7 @@ describe('SkillParser.parse', () => {
 
     expect(skill.id).toBe('owasp-top-10')
     expect(skill.name).toBe('OWASP Top 10')
-    expect(skill.version).toBe('1.2.0')
+    expect(skill.version).toBe('2026.3.2')
     expect(skill.license).toBe('MIT')
     expect(skill.compatibility?.agentOrchestra).toBe('>=1.3.0')
     expect(skill.compatibility?.platforms).toContain('darwin')
@@ -281,7 +281,7 @@ describe('SkillParser.parse', () => {
     const { skill, warnings } = result as SkillParseResult
 
     expect(skill.triggers).toBeUndefined()
-    expect(skill.version).toBe('0.9.0')
+    expect(skill.version).toBe('2026.2.9')
     expect(warnings).toHaveLength(0)
   })
 
@@ -365,11 +365,18 @@ describe('SkillParser.parse', () => {
     expect(err.message).toMatch(/description/i)
   })
 
-  it('defaults version to 0.0.0 when not specified', () => {
+  it('defaults version to current CalVer when not specified', () => {
     const raw = `---\nname: versionless\ndescription: No version field\n---\nbody`
     const result = parser.parse('/test.skill.md', raw)
     expect(isParseResult(result)).toBe(true)
-    expect((result as SkillParseResult).skill.version).toBe('0.0.0')
+    expect((result as SkillParseResult).skill.version).toBe('2026.3.1')
+  })
+
+  it('rejects semver versions in skill frontmatter', () => {
+    const raw = `---\nname: semver-skill\ndescription: Old version format\nversion: 1.0.0\n---\nbody`
+    const result = parser.parse('/test.skill.md', raw)
+    expect(isParseError(result)).toBe(true)
+    expect((result as SkillParseError).message).toMatch(/valid CalVer/i)
   })
 
   it('uses name field as ID (lowercased, spaces → hyphens)', () => {

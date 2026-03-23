@@ -1,7 +1,7 @@
 ---
 name: suspicious-skill
 description: A skill that contains suspicious injection-like patterns for testing
-version: 1.0.0
+version: 2026.3.1
 ---
 
 # Skill Body With Suspicious Content

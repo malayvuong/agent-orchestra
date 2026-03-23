@@ -6,6 +6,7 @@ import { parse as parseYaml } from 'yaml'
 import type { InstallSource, InstallResult, LockfileEntry } from './types.js'
 import { computeDirectoryChecksum } from './checksum.js'
 import type { LockfileManager } from './lockfile.js'
+import { AGENT_ORCHESTRA_VERSION, isValidCalver } from '@malayvuong/agent-orchestra-shared'
 
 const execFileAsync = promisify(execFile)
 
@@ -233,20 +234,32 @@ export class SkillInstaller {
       const dirName = basename(sourcePath)
         .toLowerCase()
         .replace(/[^a-z0-9-]/g, '-')
-      return { skillId: dirName, version: '0.0.0' }
+      return { skillId: dirName, version: AGENT_ORCHESTRA_VERSION }
     }
 
+    let meta: Record<string, unknown>
     try {
-      const meta = parseYaml(frontmatterMatch[1]) as Record<string, unknown>
-      const name = typeof meta.name === 'string' ? meta.name : basename(sourcePath)
-      const skillId = name.toLowerCase().replace(/[^a-z0-9-]/g, '-')
-      const version = typeof meta.version === 'string' ? meta.version : '0.0.0'
-      return { skillId, version }
+      meta = parseYaml(frontmatterMatch[1]) as Record<string, unknown>
     } catch {
       const dirName = basename(sourcePath)
         .toLowerCase()
         .replace(/[^a-z0-9-]/g, '-')
-      return { skillId: dirName, version: '0.0.0' }
+      return { skillId: dirName, version: AGENT_ORCHESTRA_VERSION }
     }
+
+    const name = typeof meta.name === 'string' ? meta.name : basename(sourcePath)
+    const skillId = name.toLowerCase().replace(/[^a-z0-9-]/g, '-')
+    const version =
+      typeof meta.version === 'string'
+        ? this.validateVersion(meta.version, sourcePath)
+        : AGENT_ORCHESTRA_VERSION
+    return { skillId, version }
+  }
+
+  private validateVersion(version: string, sourcePath: string): string {
+    if (!isValidCalver(version)) {
+      throw new Error(`Skill "${sourcePath}" version is not a valid CalVer: ${version}`)
+    }
+    return version
   }
 }

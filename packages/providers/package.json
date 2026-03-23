@@ -1,6 +1,6 @@
 {
   "name": "@malayvuong/agent-orchestra-providers",
-  "version": "0.0.1",
+  "version": "2026.3.1",
   "description": "LLM provider adapters for Agent Orchestra",
   "license": "MIT",
   "type": "module",

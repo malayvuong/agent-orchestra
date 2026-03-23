@@ -9,6 +9,7 @@ import { Server } from '@modelcontextprotocol/sdk/server/index.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js'
 import { TOOL_DEFINITIONS } from './tools.js'
+import { AGENT_ORCHESTRA_VERSION } from '@malayvuong/agent-orchestra-shared'
 import {
   handleListSuperpowers,
   handleReviewTarget,
@@ -27,7 +28,7 @@ export function createMcpServer(workspacePath: string): Server {
   const server = new Server(
     {
       name: 'agent-orchestra',
-      version: '0.0.1',
+      version: AGENT_ORCHESTRA_VERSION,
     },
     {
       capabilities: {

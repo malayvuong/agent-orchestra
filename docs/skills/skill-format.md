@@ -35,10 +35,10 @@ description: OWASP Top 10 checklist for code review.
 
 ### `version` (string, optional)
 
-Semantic version of the skill. Defaults to `0.0.0` if omitted.
+CalVer of the skill in `YYYY.M.PATCH` format. Defaults to the current Agent Orchestra release CalVer if omitted.
 
 ```yaml
-version: 1.0.0
+version: 2026.3.1
 ```
 
 ### `license` (string, optional)

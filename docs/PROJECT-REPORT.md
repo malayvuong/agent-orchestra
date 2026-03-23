@@ -33,7 +33,7 @@ Agent Orchestra is an AI agent orchestration platform for multi-agent code revie
 | Test runner | Vitest 4.1.0 |
 | Build tool | tsup 8.5.1 |
 
-**Current status:** All core functionality is implemented and tested. The project is pre-release (v0.0.1) and has not yet been published to npm or deployed to GitHub Actions CI. All tests pass, the build is clean, and lint reports zero issues.
+**Current status:** All core functionality is implemented and tested. The project release line now uses CalVer (`v2026.3.1`). All tests pass, the build is clean, and lint reports zero issues.
 
 ---
 
@@ -46,13 +46,13 @@ Agent Orchestra uses a pnpm workspace monorepo with the following layout:
 ```
 agent-orchestra/
   packages/
-    shared/          @agent-orchestra/shared      (constants, errors, utilities)
-    core/            @agent-orchestra/core        (engine, skills, protocols, storage)
-    providers/       @agent-orchestra/providers   (LLM provider adapters)
-    registry/        @agent-orchestra/registry    (skill registry, lockfile, installer)
+    shared/          @malayvuong/agent-orchestra-shared      (constants, errors, utilities)
+    core/            @malayvuong/agent-orchestra-core        (engine, skills, protocols, storage)
+    providers/       @malayvuong/agent-orchestra-providers   (LLM provider adapters)
+    registry/        @malayvuong/agent-orchestra-registry    (skill registry, lockfile, installer)
   apps/
-    cli/             @agent-orchestra/cli         (CLI application)
-    server/          @agent-orchestra/server      (HTTP API server)
+    cli/             @malayvuong/agent-orchestra         (CLI application)
+    server/          @malayvuong/agent-orchestra-server  (HTTP API server)
   tests/
     security/        (cross-cutting security tests)
   docs/              (specs, work packages, skill documentation)
@@ -61,18 +61,18 @@ agent-orchestra/
 ### 2.2 Package Dependency Graph
 
 ```
-@agent-orchestra/shared          (no internal dependencies)
+@malayvuong/agent-orchestra-shared          (no internal dependencies)
        |
        v
-@agent-orchestra/core            (depends on: shared, yaml)
+@malayvuong/agent-orchestra-core            (depends on: shared, yaml)
        |
        v
-@agent-orchestra/providers       (depends on: core, shared)
-@agent-orchestra/registry        (depends on: core, shared, yaml)
+@malayvuong/agent-orchestra-providers       (depends on: core, shared)
+@malayvuong/agent-orchestra-registry        (depends on: core, shared, yaml)
        |
        v
-@agent-orchestra/cli             (depends on: core, providers, registry, shared, commander)
-@agent-orchestra/server          (depends on: core, shared)
+@malayvuong/agent-orchestra      (depends on: core, providers, registry, shared, commander)
+@malayvuong/agent-orchestra-server          (depends on: core, shared)
 ```
 
 ### 2.3 Key Design Patterns
@@ -89,21 +89,21 @@ agent-orchestra/
 
 | Package | Version | Description | Source Files | Test Files | Lines of Code |
 |---------|---------|-------------|:------------:|:----------:|:-------------:|
-| `@agent-orchestra/shared` | 0.0.1 | Shared constants, errors, and utilities | 3 | 0 | 48 |
-| `@agent-orchestra/core` | 0.0.1 | Core engine -- types, skills, protocols, storage, templates, orchestrator | 78 | 31 | 8,986 |
-| `@agent-orchestra/providers` | 0.0.1 | LLM provider adapters (OpenAI, Anthropic) | 6 | 2 | 583 |
-| `@agent-orchestra/registry` | 0.0.1 | Skill registry, lockfile, and installation management | 6 | 5 | 1,039 |
-| `@agent-orchestra/cli` | 0.0.1 | CLI application with commander.js | 8 | 2 | 1,705 |
-| `@agent-orchestra/server` | 0.0.1 | HTTP API server (Node.js http module) | 1 | 0 | 143 |
+| `@malayvuong/agent-orchestra-shared` | 2026.3.1 | Shared constants, errors, and utilities | 3 | 0 | 48 |
+| `@malayvuong/agent-orchestra-core` | 2026.3.1 | Core engine -- types, skills, protocols, storage, templates, orchestrator | 78 | 31 | 8,986 |
+| `@malayvuong/agent-orchestra-providers` | 2026.3.1 | LLM provider adapters (OpenAI, Anthropic) | 6 | 2 | 583 |
+| `@malayvuong/agent-orchestra-registry` | 2026.3.1 | Skill registry, lockfile, and installation management | 6 | 5 | 1,039 |
+| `@malayvuong/agent-orchestra` | 2026.3.1 | CLI application with commander.js | 8 | 2 | 1,705 |
+| `@malayvuong/agent-orchestra-server` | 2026.3.1 | HTTP API server (Node.js http module) | 1 | 0 | 143 |
 | Security tests (root) | -- | Cross-cutting security test suite | 0 | 5 | 741 |
 
 ### Key Exports by Package
 
-**@agent-orchestra/shared:**
+**@malayvuong/agent-orchestra-shared:**
 - `DEFAULT_STORAGE_DIR`, `DEFAULT_RUNTIME_CONFIG` -- configuration constants
 - `AgentOrchestraError`, `NotImplementedError`, `SandboxUnavailableError` -- error classes
 
-**@agent-orchestra/core:**
+**@malayvuong/agent-orchestra-core:**
 - Types: `Job`, `Finding`, `AgentAssignment`, `AgentLens`, `Protocol`, `SkillDefinition`, `SkillSet`
 - Skills: `SkillParser`, `SkillLoader`, `SkillMatcher`, `SkillInjector`, `SkillSetLoader`
 - Policy: `PolicyEngine`, `loadPolicyConfig`, `SYSTEM_RULES`
@@ -487,7 +487,7 @@ The project maintains a minimal external dependency footprint. LLM provider adap
 
 7. **`skills validate` command is a placeholder.** The CLI registers the command but prints "Not yet implemented" when invoked.
 
-8. **No npm publishing configuration.** Package versions are all `0.0.1` and `prepublishOnly` scripts are defined, but no `.npmrc` or publishing CI workflow is configured.
+8. **Release process now uses CalVer.** Package and skill release surfaces use `YYYY.M.PATCH` (for example `2026.3.1`), so any older SemVer-based examples or registry entries need manual migration rather than implicit compatibility handling.
 
 ---
 

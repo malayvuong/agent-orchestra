@@ -28,7 +28,7 @@ describe('resolveRunSkills', () => {
       `---
 name: Risk Check
 description: Review plan risk
-version: 1.0.0
+version: 2026.3.1
 triggers:
   roles: [architect]
 ---
@@ -41,7 +41,7 @@ Assess risk.
       `---
 name: Scope Discipline
 description: Keep scope tight
-version: 1.0.0
+version: 2026.3.1
 triggers:
   roles: [reviewer]
 ---

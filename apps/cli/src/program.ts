@@ -7,12 +7,13 @@ import { registerJobCommand } from './commands/job.js'
 import { registerSuperpowersCommand } from './commands/superpowers.js'
 import { registerInitCommand } from './commands/init.js'
 import { registerServeCommand } from './commands/serve.js'
+import { AGENT_ORCHESTRA_VERSION } from '@malayvuong/agent-orchestra-shared'
 
 export function createProgram(): Command {
   const program = new Command()
     .name('agent-orchestra')
     .description('AI agent orchestration for multi-agent code review and planning')
-    .version('0.0.1')
+    .version(AGENT_ORCHESTRA_VERSION)
 
   // Show help when no command is given (instead of erroring)
   program.action(() => {

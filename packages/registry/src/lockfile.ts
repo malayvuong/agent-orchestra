@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml'
 import type { Lockfile, LockfileEntry, LockfileVerifyResult } from './types.js'
 import { computeDirectoryChecksum } from './checksum.js'
+import { isValidCalver } from '@malayvuong/agent-orchestra-shared'
 
 const LOCKFILE_NAME = 'skills.lock'
 
@@ -52,6 +53,12 @@ export class LockfileManager {
         this.logger?.warn(`Unsupported lockfile version: ${parsed?.lockfileVersion}`)
         return null
       }
+      for (const [skillId, entry] of Object.entries(parsed.skills ?? {})) {
+        if (!isValidCalver(entry.version)) {
+          this.logger?.warn(`Skill "${skillId}" version is not a valid CalVer: ${entry.version}`)
+          return null
+        }
+      }
       this.lockfile = parsed
       return this.lockfile
     } catch (err) {
@@ -90,6 +97,10 @@ export class LockfileManager {
    * Add or update a skill entry in the lockfile and write to disk.
    */
   async upsert(skillId: string, entry: LockfileEntry): Promise<void> {
+    if (!isValidCalver(entry.version)) {
+      throw new Error(`Skill "${skillId}" version is not a valid CalVer: ${entry.version}`)
+    }
+
     const lockfile = await this.getOrCreate()
 
     // Don't overwrite pinned skills unless explicitly requested

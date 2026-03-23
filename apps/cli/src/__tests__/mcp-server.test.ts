@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { createProgram } from '../program.js'
 import { createMcpServer } from '../mcp/server.js'
 import { TOOL_DEFINITIONS } from '../mcp/tools.js'
+import { AGENT_ORCHESTRA_VERSION } from '@malayvuong/agent-orchestra-shared'
 
 function getRequiredFields(toolName: string): string[] {
   const tool = TOOL_DEFINITIONS.find((entry) => entry.name === toolName)!
@@ -20,6 +21,11 @@ function getToolProperties(toolName: string): Record<string, unknown> {
 // ---------------------------------------------------------------------------
 
 describe('serve command — registration', () => {
+  it('program exposes the current CalVer', () => {
+    const program = createProgram()
+    expect(program.version()).toBe(AGENT_ORCHESTRA_VERSION)
+  })
+
   it('program has serve command registered', () => {
     const program = createProgram()
     const serve = program.commands.find((c) => c.name() === 'serve')
@@ -56,6 +62,14 @@ describe('createMcpServer', () => {
   it('creates a server instance', () => {
     const server = createMcpServer('/tmp/test-workspace')
     expect(server).toBeDefined()
+  })
+
+  it('uses the current CalVer in MCP server info', () => {
+    const server = createMcpServer('/tmp/test-workspace') as unknown as {
+      _serverInfo?: { version?: string }
+    }
+
+    expect(server._serverInfo?.version).toBe(AGENT_ORCHESTRA_VERSION)
   })
 
   it('server has correct tool count registered', async () => {

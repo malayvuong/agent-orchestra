@@ -1,7 +1,7 @@
 ---
 name: large-body-test
 description: A test skill with a body exceeding 2000 tokens to test summary truncation behavior.
-version: 1.0.0
+version: 2026.3.1
 license: MIT
 triggers:
   lenses: [testing]

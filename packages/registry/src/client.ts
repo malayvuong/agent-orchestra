@@ -11,6 +11,7 @@ import type {
   UpdateAvailable,
 } from './types.js'
 import { computeDirectoryChecksum } from './checksum.js'
+import { compareCalver, isValidCalver } from './calver.js'
 
 const execFileAsync = promisify(execFile)
 
@@ -39,21 +40,6 @@ export function defaultRegistryConfig(overrides?: Partial<RegistryConfig>): Regi
     cacheDir: overrides?.cacheDir ?? DEFAULT_CACHE_DIR,
     cacheTtlSeconds: overrides?.cacheTtlSeconds ?? DEFAULT_CACHE_TTL,
   }
-}
-
-/**
- * Compare two semver version strings.
- * Returns >0 if a > b, <0 if a < b, 0 if equal.
- */
-function compareSemver(a: string, b: string): number {
-  const partsA = a.replace(/^v/, '').split('.').map(Number)
-  const partsB = b.replace(/^v/, '').split('.').map(Number)
-
-  for (let i = 0; i < 3; i++) {
-    const diff = (partsA[i] ?? 0) - (partsB[i] ?? 0)
-    if (diff !== 0) return diff
-  }
-  return 0
 }
 
 /**
@@ -178,14 +164,17 @@ export class RegistryClient {
     const index = await this.fetchIndex()
 
     // Find matching entries
-    const candidates = index.skills.filter((s) => s.id === skillId)
+    const candidates = index.skills
+      .filter((s) => s.id === skillId)
+      .map((entry) => this.assertValidRegistryEntryVersion(entry))
     if (candidates.length === 0) {
       throw new Error(`Skill "${skillId}" not found in registry.`)
     }
 
-    // Resolve version: use specified or pick the highest semver
+    // Resolve version: use specified or pick the highest CalVer
     let entry: RegistrySkillEntry
     if (version) {
+      this.assertValidVersion(version, `Requested version for "${skillId}"`)
       const exact = candidates.find((s) => s.version === version)
       if (!exact) {
         throw new Error(
@@ -194,7 +183,7 @@ export class RegistryClient {
       }
       entry = exact
     } else {
-      entry = [...candidates].sort((a, b) => compareSemver(b.version, a.version))[0]
+      entry = [...candidates].sort((a, b) => compareCalver(b.version, a.version))[0]
     }
 
     const cacheSkillDir = join(this.config.cacheDir, 'skills', skillId, entry.version)
@@ -272,7 +261,9 @@ export class RegistryClient {
    */
   async versions(skillId: string): Promise<string[]> {
     const index = await this.fetchIndex()
-    return index.skills.filter((s) => s.id === skillId).map((s) => s.version)
+    return index.skills
+      .filter((s) => s.id === skillId)
+      .map((entry) => this.assertValidRegistryEntryVersion(entry).version)
   }
 
   /**
@@ -287,14 +278,18 @@ export class RegistryClient {
     const updates: UpdateAvailable[] = []
 
     for (const inst of installed) {
+      this.assertValidVersion(inst.version, `Installed version for "${inst.skillId}"`)
+
       // Find all versions of this skill in the registry
-      const candidates = index.skills.filter((s) => s.id === inst.skillId)
+      const candidates = index.skills
+        .filter((s) => s.id === inst.skillId)
+        .map((entry) => this.assertValidRegistryEntryVersion(entry))
       if (candidates.length === 0) continue
 
       // Find the highest version
-      const latest = [...candidates].sort((a, b) => compareSemver(b.version, a.version))[0]
+      const latest = [...candidates].sort((a, b) => compareCalver(b.version, a.version))[0]
 
-      if (compareSemver(latest.version, inst.version) > 0) {
+      if (compareCalver(latest.version, inst.version) > 0) {
         updates.push({
           skillId: inst.skillId,
           currentVersion: inst.version,
@@ -310,8 +305,16 @@ export class RegistryClient {
    * Resolve a skill entry from the registry by ID and optional version.
    */
   async resolve(skillId: string, version?: string): Promise<RegistrySkillEntry | null> {
+    if (version) {
+      this.assertValidVersion(version, `Requested version for "${skillId}"`)
+    }
     const index = await this.fetchIndex()
-    return index.skills.find((s) => s.id === skillId && (!version || s.version === version)) ?? null
+    return (
+      index.skills
+        .filter((s) => s.id === skillId)
+        .map((entry) => this.assertValidRegistryEntryVersion(entry))
+        .find((s) => !version || s.version === version) ?? null
+    )
   }
 
   /**
@@ -397,5 +400,16 @@ export class RegistryClient {
     }
     // Fallback: assume it's a GitHub repo URL already
     return url.replace(/\/registry\.json$/, '.git')
+  }
+
+  private assertValidRegistryEntryVersion(entry: RegistrySkillEntry): RegistrySkillEntry {
+    this.assertValidVersion(entry.version, `Registry version for "${entry.id}"`)
+    return entry
+  }
+
+  private assertValidVersion(version: string, label: string): void {
+    if (!isValidCalver(version)) {
+      throw new Error(`${label} is not a valid CalVer: ${version}`)
+    }
   }
 }

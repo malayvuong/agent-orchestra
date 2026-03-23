@@ -1,6 +1,6 @@
 {
   "name": "@malayvuong/agent-orchestra-registry",
-  "version": "0.0.1",
+  "version": "2026.3.1",
   "description": "Skill registry, lockfile, and installation management for Agent Orchestra",
   "license": "MIT",
   "type": "module",

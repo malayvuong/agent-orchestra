@@ -32,7 +32,7 @@ mkdir -p .agent-orchestra/skills/my-skill
 ---
 name: My Skill
 description: A short description of what this skill does.
-version: 1.0.0
+version: 2026.3.1
 license: MIT
 triggers:
   lenses:
@@ -66,7 +66,7 @@ Skills without a `triggers` section are always-on — they are injected for ever
 ---
 name: Database Safety
 description: Checks for safe database access patterns including parameterized queries and connection handling.
-version: 1.0.0
+version: 2026.3.1
 license: MIT
 triggers:
   lenses:

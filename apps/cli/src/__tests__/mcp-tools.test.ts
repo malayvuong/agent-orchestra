@@ -152,7 +152,7 @@ describe('handleListSkills', () => {
       `---
 name: Test Skill
 description: A test skill for MCP handler tests
-version: 1.0.0
+version: 2026.3.1
 ---
 
 Test content.

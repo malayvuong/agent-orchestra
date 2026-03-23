@@ -2,6 +2,7 @@ import { createServer, type ServerResponse } from 'node:http'
 import { readdir, readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { loadSuperpowerCatalog } from '@malayvuong/agent-orchestra-core'
+import { AGENT_ORCHESTRA_VERSION } from '@malayvuong/agent-orchestra-shared'
 
 const PORT = Number(process.env.PORT ?? 3100)
 const STORAGE_DIR = process.env.STORAGE_DIR ?? join(process.cwd(), '.agent-orchestra')
@@ -22,14 +23,14 @@ const server = createServer(async (req, res) => {
 
   try {
     if (url.pathname === '/health') {
-      json(res, { status: 'ok', version: '0.0.1', uptime: process.uptime() })
+      json(res, { status: 'ok', version: AGENT_ORCHESTRA_VERSION, uptime: process.uptime() })
       return
     }
 
     if (url.pathname === '/api/status') {
       const jobCount = await countJobs()
       json(res, {
-        version: '0.0.1',
+        version: AGENT_ORCHESTRA_VERSION,
         storage: STORAGE_DIR,
         jobs: jobCount,
         node: process.version,

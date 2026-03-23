@@ -41,7 +41,7 @@ let externalSkillDir: string
 function skillMd(name: string, opts: { lens?: string; body?: string } = {}): string {
   const triggers = opts.lens ? `\ntriggers:\n  lenses:\n    - ${opts.lens}` : ''
   const body = opts.body ?? `Prompt content for ${name}. This is the skill body.`
-  return `---\nname: ${name}\ndescription: A test skill for ${name}\nversion: "1.0.0"\nlicense: MIT${triggers}\n---\n\n${body}`
+  return `---\nname: ${name}\ndescription: A test skill for ${name}\nversion: "2026.3.1"\nlicense: MIT${triggers}\n---\n\n${body}`
 }
 
 /**
@@ -101,7 +101,7 @@ describe('Phase B — install → load → verify → inject pipeline', () => {
 
     const installResult = await installer.install({ type: 'local', path: sourceDir })
     expect(installResult.skillId).toBe('security-review')
-    expect(installResult.version).toBe('1.0.0')
+    expect(installResult.version).toBe('2026.3.1')
     expect(installResult.checksum.algorithm).toBe('sha256')
     expect(installResult.checksum.digest).toMatch(/^[a-f0-9]{64}$/)
 

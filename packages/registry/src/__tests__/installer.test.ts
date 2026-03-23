@@ -34,7 +34,7 @@ function createSkillSource(
   return mkdir(skillDir, { recursive: true }).then(async () => {
     await writeFile(
       join(skillDir, 'SKILL.md'),
-      `---\nname: ${name}\ndescription: Test skill\nversion: "1.0.0"\nlicense: MIT\n---\n\n${content}`,
+      `---\nname: ${name}\ndescription: Test skill\nversion: "2026.3.1"\nlicense: MIT\n---\n\n${content}`,
     )
     return skillDir
   })
@@ -87,7 +87,7 @@ describe('SkillInstaller', () => {
       const result = await installer.install({ type: 'local', path: skillPath })
 
       expect(result.skillId).toBe('my-local-skill')
-      expect(result.version).toBe('1.0.0')
+      expect(result.version).toBe('2026.3.1')
       expect(result.source).toBe('local')
       expect(result.checksum.algorithm).toBe('sha256')
       expect(result.checksum.digest).toMatch(/^[a-f0-9]{64}$/)
@@ -117,6 +117,21 @@ describe('SkillInstaller', () => {
         'No SKILL.md found',
       )
     })
+
+    it('rejects semver skill versions from local sources', async () => {
+      const skillDir = join(sourceDir, 'semver-skill')
+      await mkdir(skillDir, { recursive: true })
+      await writeFile(
+        join(skillDir, 'SKILL.md'),
+        '---\nname: semver-skill\ndescription: Test skill\nversion: "1.0.0"\nlicense: MIT\n---\n\nbody',
+      )
+      const lockfileManager = new LockfileManager(workspacePath)
+      const installer = new SkillInstaller(workspacePath, lockfileManager)
+
+      await expect(installer.install({ type: 'local', path: skillDir })).rejects.toThrow(
+        'not a valid CalVer',
+      )
+    })
   })
 
   describe('install from git URL', () => {
@@ -141,7 +156,7 @@ describe('SkillInstaller', () => {
       await execFileAsync('git', ['-C', repoWork, 'config', 'user.name', 'Test'])
       await writeFile(
         join(repoWork, 'SKILL.md'),
-        `---\nname: ${name}\ndescription: A git skill\nversion: "2.0.0"\nlicense: MIT\n---\n\n${body}`,
+        `---\nname: ${name}\ndescription: A git skill\nversion: "2026.4.1"\nlicense: MIT\n---\n\n${body}`,
       )
       await execFileAsync('git', ['-C', repoWork, 'add', '.'])
       await execFileAsync('git', ['-C', repoWork, 'commit', '-m', 'init'])
@@ -171,7 +186,7 @@ describe('SkillInstaller', () => {
       const result = await installer.install({ type: 'git', url: repoPath })
 
       expect(result.skillId).toBe('git-skill')
-      expect(result.version).toBe('2.0.0')
+      expect(result.version).toBe('2026.4.1')
       expect(result.source).toBe('git')
       expect(result.checksum.algorithm).toBe('sha256')
       expect(result.checksum.digest).toMatch(/^[a-f0-9]{64}$/)

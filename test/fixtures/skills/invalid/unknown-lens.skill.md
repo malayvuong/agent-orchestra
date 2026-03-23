@@ -1,7 +1,7 @@
 ---
 name: unknown-lens-skill
 description: A skill with an unrecognized lens value in triggers
-version: 1.0.0
+version: 2026.3.1
 triggers:
   lenses:
     - security

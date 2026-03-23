@@ -2,6 +2,7 @@ import { parse as parseYaml, YAMLParseError } from 'yaml'
 import type { TokenEstimator } from '../interfaces/token-estimator.js'
 import type { SkillDefinition, SkillParseError, SkillTrigger } from './types.js'
 import type { AgentLens, AgentRole } from '../types/agent.js'
+import { AGENT_ORCHESTRA_VERSION, isValidCalver } from '@malayvuong/agent-orchestra-shared'
 
 /** Spec Task 1.2 — SKILL.md parser */
 
@@ -86,7 +87,14 @@ export class SkillParser {
     const description = (fm['description'] as string).trim()
 
     // --- Optional field extraction ---
-    const version = typeof fm['version'] === 'string' ? fm['version'] : '0.0.0'
+    const version = typeof fm['version'] === 'string' ? fm['version'] : AGENT_ORCHESTRA_VERSION
+    if (!isValidCalver(version)) {
+      return {
+        type: 'parse_error',
+        path: filePath,
+        message: `Skill version must be a valid CalVer (YYYY.M.PATCH). Received: ${version}`,
+      }
+    }
     const license = typeof fm['license'] === 'string' ? fm['license'] : undefined
 
     // --- Compatibility ---

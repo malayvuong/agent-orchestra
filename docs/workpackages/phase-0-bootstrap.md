@@ -605,7 +605,7 @@ By the end of Phase 0, a developer cloning the repo can:
      const program = new Command()
        .name('agent-orchestra')
        .description('AI agent orchestration for multi-agent code review and planning')
-       .version('0.0.1')
+       .version('2026.3.1')
 
      registerSkillsCommand(program)
 
@@ -667,7 +667,7 @@ By the end of Phase 0, a developer cloning the repo can:
 - [ ] `pnpm dev:cli -- --help` prints help with `skills` listed as a command.
 - [ ] `pnpm dev:cli -- skills --help` lists `list`, `inspect`, `validate` subcommands.
 - [ ] `pnpm dev:cli -- skills list` prints the placeholder message (exit 0).
-- [ ] `pnpm dev:cli -- --version` prints `0.0.1`.
+- [ ] `pnpm dev:cli -- --version` prints `2026.3.1`.
 
 **Files Created:**
 
