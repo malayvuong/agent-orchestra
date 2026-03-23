@@ -1,7 +1,7 @@
 ---
 name: Code Quality
 description: General code quality guidelines injected for every agent review. Covers naming, function length, error handling, logging, and DRY principles.
-version: 1.0.0
+version: 2026.3.1
 license: MIT
 ---
 

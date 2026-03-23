@@ -1,7 +1,7 @@
 ---
 name: Migration Guide
 description: Framework migration patterns for code review. Covers dependency audits, breaking change detection, incremental migration strategy, and rollback planning.
-version: 1.0.0
+version: 2026.3.1
 license: MIT
 triggers:
   keywords:

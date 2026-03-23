@@ -1,0 +1,11 @@
+skillsets:
+  - id: plan-review
+    name: Plan Review
+    description: Skills for reviewing implementation plans, roadmaps, and RFCs for sequencing, scope, dependencies, risks, and implementation readiness.
+    skills:
+      - sequencing-check
+      - dependency-check
+      - scope-discipline
+      - implementation-readiness
+      - risk-check
+    contextBudgetPercent: 30

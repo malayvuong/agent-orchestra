@@ -46,6 +46,6 @@ pids
 .vscode/
 *.swp
 *.swo
-.agent-orchestra
+.agent-orchestra/jobs
 .DS_Store
 tmp-demo

@@ -1,7 +1,7 @@
 ---
 name: Security Review
 description: OWASP Top 10 checklist for code review. Covers injection, broken auth, XSS, insecure deserialization, SSRF, and dependency vulnerabilities.
-version: 1.0.0
+version: 2026.3.1
 license: MIT
 triggers:
   lenses:

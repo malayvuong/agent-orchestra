@@ -1,7 +1,7 @@
 ---
 name: Test Conventions
 description: Testing patterns and conventions for code review. Covers naming, AAA structure, boundary testing, mock vs real dependencies, and coverage expectations.
-version: 1.0.0
+version: 2026.3.1
 license: MIT
 triggers:
   lenses:

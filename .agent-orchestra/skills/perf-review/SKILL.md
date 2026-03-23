@@ -1,7 +1,7 @@
 ---
 name: Performance Review
 description: Performance review checklist covering N+1 queries, unnecessary allocations, cache opportunities, async patterns, and bundle size.
-version: 1.0.0
+version: 2026.3.1
 license: MIT
 triggers:
   lenses:
