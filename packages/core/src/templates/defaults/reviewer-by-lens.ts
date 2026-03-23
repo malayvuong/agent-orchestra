@@ -14,6 +14,9 @@ Be precise, cite file paths and line numbers, and classify each finding.`,
   userPromptTemplate: `## Brief
 {{brief}}
 
+## Current Source Snapshot
+{{current_content}}
+
 ## Scope
 {{scope}}
 
@@ -23,7 +26,7 @@ Be precise, cite file paths and line numbers, and classify each finding.`,
 ## Skill Context
 {{skill_context}}
 
-Review the code focusing on **{{lens}}**. Build on or challenge the architect's findings where relevant. Identify new issues the architect may have missed within your lens focus.`,
+Review the current source snapshot focusing on **{{lens}}**. Build on or challenge the architect's findings where relevant. Identify new issues the architect may have missed within your lens focus.`,
 
   outputFormatInstructions: `## Output Format
 

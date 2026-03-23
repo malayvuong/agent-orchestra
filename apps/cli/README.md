@@ -33,6 +33,8 @@ ao run --target ./docs/plan.md --superpower plan-review --max-rounds 10 --auto-a
 ao serve --mcp
 ```
 
+`--auto-apply` patches the live file in place. It does not replace the whole file with model-generated content, and it only applies reviewer findings that the architect explicitly acknowledged.
+
 ## Default Models
 
 `ao init` and provider auto-resolution use these defaults:

@@ -14,13 +14,16 @@ Be specific, cite evidence from the code, and classify each finding by actionabi
   userPromptTemplate: `## Brief
 {{brief}}
 
+## Current Source Snapshot
+{{current_content}}
+
 ## Scope
 {{scope}}
 
 ## Skill Context
 {{skill_context}}
 
-Analyze the code within the scope described above. Produce findings covering architecture, design patterns, code structure, and maintainability.`,
+Analyze the current source snapshot within the scope described above. Produce findings covering architecture, design patterns, code structure, and maintainability.`,
 
   outputFormatInstructions: `## Output Format
 

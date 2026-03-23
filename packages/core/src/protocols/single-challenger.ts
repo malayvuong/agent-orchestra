@@ -22,7 +22,7 @@ import { architectResponseTemplate } from '../templates/defaults/architect-respo
 import { reviewerFollowupTemplate } from '../templates/defaults/reviewer-followup.js'
 import { architectApplyTemplate } from '../templates/defaults/architect-apply.js'
 import { reviewerFinalCheckTemplate } from '../templates/defaults/reviewer-final-check.js'
-import { parseApplyOutput } from '../apply/parse-apply-output.js'
+import { parseApplyOutput, type PatchOperation } from '../apply/parse-apply-output.js'
 
 /**
  * Minimal interface matching what we need from the provider executor.
@@ -61,12 +61,14 @@ const DEFAULT_FAILURE_POLICY: FailurePolicy = {
 /**
  * SingleChallengerRunner implements the `single_challenger` protocol.
  *
- * Spec v1.3 SS8.4 -- step sequence: analysis -> review -> rebuttal -> convergence.
+ * Step sequence: analysis -> review -> (rebuttal -> inline apply -> follow-up)* -> convergence.
  *
  * 1. Architect analyzes the target code
  * 2. Reviewer reviews with lens focus, building on architect findings
  * 3. Architect responds to reviewer findings (rebuttal)
- * 4. Convergence: collect and synthesize all findings
+ * 4. Architect patches the live file(s) inline when auto-apply is enabled
+ * 5. Reviewer re-reads the patched file(s) and continues the debate
+ * 6. Convergence: collect and synthesize all findings
  */
 export class SingleChallengerRunner implements ProtocolRunner {
   async execute(job: Job, deps: ProtocolExecutionDeps): Promise<void> {
@@ -90,8 +92,8 @@ export class SingleChallengerRunner implements ProtocolRunner {
 
     const agentCount = job.agents.filter((a) => a.enabled).length
     const autoApplyRequested = job.runtimeConfig?.autoApply ?? false
-    const terminalReservation = 2 + (autoApplyRequested ? 1 : 0)
-    const minimumRequiredRounds = 3 + terminalReservation
+    const terminalReservation = 2
+    const minimumRequiredRounds = autoApplyRequested ? 6 : 5
     const totalRoundBudget = this.resolveTotalRoundBudget(job, agentCount, autoApplyRequested)
 
     if (totalRoundBudget < minimumRequiredRounds) {
@@ -104,6 +106,7 @@ export class SingleChallengerRunner implements ProtocolRunner {
     let roundIndex = 0
     const allFindings: Finding[] = []
     const debateHistory: string[] = []
+    let aggregateApplySummary: ApplySummary | undefined
 
     // Max chars for debate history to prevent context overflow.
     // Keep ~40K chars — enough for 2-3 full rounds of context.
@@ -123,13 +126,15 @@ export class SingleChallengerRunner implements ProtocolRunner {
       providerExecutor,
       roundStore,
       eventBus,
-      renderPrompt: () => {
+      renderPrompt: async () => {
+        const currentSnapshot = await this.readCurrentScopeSnapshot(job)
         const context = deps.contextBuilder.buildFor(architect, job, {
           skills: resolvedSkills,
           lifecyclePoint: 'pre_round',
         })
         return renderTemplate(architectAnalysisTemplate, {
           brief: job.brief,
+          current_content: currentSnapshot.formatted,
           scope: JSON.stringify(job.scope.primaryTargets),
           skill_context: context.skillContext ?? '',
         })
@@ -161,13 +166,15 @@ export class SingleChallengerRunner implements ProtocolRunner {
       providerExecutor,
       roundStore,
       eventBus,
-      renderPrompt: () => {
+      renderPrompt: async () => {
+        const currentSnapshot = await this.readCurrentScopeSnapshot(job)
         const context = deps.contextBuilder.buildFor(reviewer, job, {
           skills: resolvedSkills,
           lifecyclePoint: 'pre_round',
         })
         return renderTemplate(reviewerByLensTemplate, {
           brief: job.brief,
+          current_content: currentSnapshot.formatted,
           scope: JSON.stringify(job.scope.primaryTargets),
           lens: reviewer.lens ?? 'general',
           findings: architectFindingsText,
@@ -196,6 +203,7 @@ export class SingleChallengerRunner implements ProtocolRunner {
       const lastReviewerText = lastReviewerOutput
         ? this.formatFindings(lastReviewerOutput.findings)
         : '(no reviewer findings)'
+      const reviewerFindings = lastReviewerOutput?.findings ?? []
 
       const responseOutput = await this.runStep({
         job,
@@ -206,10 +214,12 @@ export class SingleChallengerRunner implements ProtocolRunner {
         providerExecutor,
         roundStore,
         eventBus,
-        renderPrompt: () => {
+        renderPrompt: async () => {
+          const currentSnapshot = await this.readCurrentScopeSnapshot(job)
           // Always use iterative response template — acknowledge, apply, discover
           return renderTemplate(architectResponseTemplate, {
             brief: job.brief,
+            current_content: currentSnapshot.formatted,
             scope: JSON.stringify(job.scope.primaryTargets),
             findings: lastReviewerText,
             clusters: '(clustering not yet implemented)',
@@ -232,10 +242,35 @@ export class SingleChallengerRunner implements ProtocolRunner {
         )
       }
 
+      const acknowledgedReviewerFindings = responseOutput
+        ? this.selectAcknowledgedReviewerFindings(reviewerFindings, responseOutput.rawText)
+        : []
+
+      if (
+        autoApplyRequested &&
+        acknowledgedReviewerFindings.length > 0 &&
+        roundIndex < totalRoundBudget - terminalReservation
+      ) {
+        this.checkCancellation(job.id, deps)
+
+        const inlineApplySummary = await this.runApplyStep({
+          job,
+          agent: architect,
+          roundIndex: roundIndex++,
+          deps,
+          providerExecutor,
+          roundStore,
+          eventBus,
+          findingsToApply: acknowledgedReviewerFindings,
+          architectResponseText: responseOutput?.rawText ?? '',
+          failurePolicy,
+        })
+        aggregateApplySummary = this.mergeApplySummaries(aggregateApplySummary, inlineApplySummary)
+      }
+
       if (roundIndex >= totalRoundBudget - terminalReservation) break
 
-      const hasBudgetForReviewerFollowup =
-        roundIndex <= totalRoundBudget - (terminalReservation + 2)
+      const hasBudgetForReviewerFollowup = roundIndex < totalRoundBudget - terminalReservation
       if (!hasBudgetForReviewerFollowup) break
 
       // --- Reviewer Follow-up ---
@@ -252,13 +287,15 @@ export class SingleChallengerRunner implements ProtocolRunner {
         providerExecutor,
         roundStore,
         eventBus,
-        renderPrompt: () => {
+        renderPrompt: async () => {
+          const currentSnapshot = await this.readCurrentScopeSnapshot(job)
           const context = deps.contextBuilder.buildFor(reviewer, job, {
             skills: resolvedSkills,
             lifecyclePoint: 'pre_round',
           })
           return renderTemplate(reviewerFollowupTemplate, {
             brief: job.brief,
+            current_content: currentSnapshot.formatted,
             scope: JSON.stringify(job.scope.primaryTargets),
             lens: reviewer.lens ?? 'general',
             findings: responseText,
@@ -338,30 +375,6 @@ export class SingleChallengerRunner implements ProtocolRunner {
     })
 
     // -----------------------------------------------------------------------
-    // Apply phase: rewrite original files based on confirmed findings
-    // -----------------------------------------------------------------------
-    const autoApply = autoApplyRequested
-    let applySummary: ApplySummary | undefined
-
-    if (autoApply && synthesisFindings.length > 0) {
-      this.checkCancellation(job.id, deps)
-      roundIndex++
-
-      await this.runApplyStep({
-        job,
-        agent: architect,
-        roundIndex,
-        deps,
-        providerExecutor,
-        roundStore,
-        eventBus,
-        synthesisFindings,
-        failurePolicy,
-      })
-      applySummary = (await roundStore.load(job.id, roundIndex))?.applySummary
-    }
-
-    // -----------------------------------------------------------------------
     // Final check phase: compare final artifact vs original baseline
     // -----------------------------------------------------------------------
     this.checkCancellation(job.id, deps)
@@ -376,7 +389,7 @@ export class SingleChallengerRunner implements ProtocolRunner {
       roundStore,
       eventBus,
       synthesisFindings,
-      applySummary,
+      applySummary: aggregateApplySummary,
       failurePolicy,
     })
   }
@@ -394,14 +407,14 @@ export class SingleChallengerRunner implements ProtocolRunner {
   }
 
   private legacyDebateRoundsToTotalRounds(debateRounds: number, autoApply: boolean): number {
-    const interactiveSteps = 2 + debateRounds + (debateRounds - 1)
-    const terminalSteps = 2 + (autoApply ? 1 : 0)
+    const interactiveSteps = 2 + debateRounds + (debateRounds - 1) + (autoApply ? debateRounds : 0)
+    const terminalSteps = 2
     return interactiveSteps + terminalSteps
   }
 
   /**
-   * Dedicated apply step — renders apply prompt, invokes provider, parses
-   * multi-file output, performs writes, then persists the round with
+   * Dedicated inline apply step — renders patch prompt, invokes provider,
+   * applies patch operations to the live files, then persists the round with
    * truthful applySummary. Does NOT reuse runStep() because apply must
    * persist AFTER writes, not before.
    */
@@ -413,9 +426,10 @@ export class SingleChallengerRunner implements ProtocolRunner {
     providerExecutor: ProviderExecutor | ProviderRouter
     roundStore: RoundStore
     eventBus: EventBus
-    synthesisFindings: Finding[]
+    findingsToApply: Finding[]
+    architectResponseText: string
     failurePolicy: FailurePolicy
-  }): Promise<void> {
+  }): Promise<ApplySummary> {
     const {
       job,
       agent,
@@ -424,12 +438,12 @@ export class SingleChallengerRunner implements ProtocolRunner {
       providerExecutor,
       roundStore,
       eventBus,
-      synthesisFindings,
+      findingsToApply,
+      architectResponseText,
       failurePolicy,
     } = params
 
     const { readFile, writeFile, rename } = await import('node:fs/promises')
-    const { relative } = await import('node:path')
 
     // Emit round:start
     eventBus.emit('round:start', {
@@ -451,49 +465,18 @@ export class SingleChallengerRunner implements ProtocolRunner {
     let agentOutput: AgentOutput | undefined
 
     try {
-      // Read original files with canonical workspace-relative labels when available.
-      let wsRoot = ''
-      if (job.targetResolution) {
-        wsRoot = job.targetResolution.workspaceRoot ?? ''
-        if (!wsRoot) {
-          const files = job.targetResolution.resolvedFiles
-          if (files.length > 0) {
-            const parts = files.map((f) => f.split('/'))
-            const commonParts: string[] = []
-            for (let i = 0; i < parts[0].length; i++) {
-              const seg = parts[0][i]
-              if (parts.every((p) => p[i] === seg)) {
-                commonParts.push(seg)
-              } else {
-                break
-              }
-            }
-            wsRoot = commonParts.join('/')
-          }
-        }
-      }
+      const currentSnapshot = await this.readCurrentScopeSnapshot(job)
 
-      const targetContents: string[] = []
-      for (const target of job.scope.primaryTargets) {
-        try {
-          const content = await readFile(target, 'utf-8')
-          const relPath = wsRoot ? relative(wsRoot, target) : target
-          targetContents.push(`--- ${relPath} ---\n${content}`)
-        } catch {
-          // Skip unreadable files
-        }
-      }
-
-      if (targetContents.length === 0) {
+      if (currentSnapshot.files.length === 0) {
         applySummary.errors.push('No readable target files found')
       } else {
-        const originalContent = targetContents.join('\n\n')
-        const findingsText = this.formatFindings(synthesisFindings)
+        const findingsText = this.formatFindings(findingsToApply)
 
         // Render and invoke the provider
         const rendered = renderTemplate(architectApplyTemplate, {
           findings: findingsText,
-          original_content: originalContent,
+          architect_response: architectResponseText,
+          current_content: currentSnapshot.formatted,
         })
 
         const agentProvider =
@@ -515,55 +498,47 @@ export class SingleChallengerRunner implements ProtocolRunner {
         })
         agentOutput = normalized.output
 
-        // Parse multi-file output
         const rawText = providerOutput.rawText
-        const parsedApplyOutput = parseApplyOutput(rawText, job.scope.primaryTargets, wsRoot)
-        const fileBlocks = [...parsedApplyOutput.fileBlocks]
-        const skippedFiles = parsedApplyOutput.skippedFiles
-        const parseErrors = [...parsedApplyOutput.errors]
-        let foundBlocks = fileBlocks.length > 0
+        const parsedApplyOutput = parseApplyOutput(
+          rawText,
+          currentSnapshot.files.map((file) => file.absolutePath),
+          currentSnapshot.workspaceRoot,
+        )
 
-        // If no blocks parsed but there IS text, try single-file fallback
-        if (!foundBlocks && rawText.trim() && job.scope.primaryTargets.length === 1) {
-          // Legacy single-file fallback
-          const singleTarget = job.scope.primaryTargets[0]
-          parseErrors.length = 0
-          fileBlocks.push({
-            relativePath: wsRoot ? relative(wsRoot, singleTarget) : singleTarget,
-            absolutePath: singleTarget,
-            content: rawText.trim(),
-          })
-          foundBlocks = true
-        }
+        applySummary.skippedFiles.push(...parsedApplyOutput.skippedFiles)
+        applySummary.errors.push(...parsedApplyOutput.errors)
 
-        applySummary.skippedFiles.push(...skippedFiles)
-        applySummary.errors.push(...parseErrors)
-
-        // Write files
-        for (const block of fileBlocks) {
-          applySummary.attemptedFiles.push(block.absolutePath)
+        for (const filePatch of parsedApplyOutput.filePatches) {
+          applySummary.attemptedFiles.push(filePatch.absolutePath)
 
           try {
-            // Read original for comparison
-            let original = ''
-            try {
-              original = await readFile(block.absolutePath, 'utf-8')
-            } catch {
-              // File doesn't exist yet or unreadable
+            const original = await readFile(filePatch.absolutePath, 'utf-8')
+            const patchResult = this.applyPatchOperations({
+              original,
+              operations: filePatch.operations,
+              relativePath: filePatch.relativePath,
+            })
+
+            if (!patchResult.ok) {
+              applySummary.skippedFiles.push({
+                path: filePatch.relativePath,
+                reason: patchResult.reason,
+              })
+              continue
             }
 
-            if (block.content === original) {
-              applySummary.unchangedFiles.push(block.absolutePath)
-            } else {
-              // Atomic write: temp file + rename
-              const tmpPath = block.absolutePath + '.ao-tmp-' + Date.now()
-              await writeFile(tmpPath, block.content, 'utf-8')
-              await rename(tmpPath, block.absolutePath)
-              applySummary.writtenFiles.push(block.absolutePath)
+            if (patchResult.content === original) {
+              applySummary.unchangedFiles.push(filePatch.absolutePath)
+              continue
             }
+
+            const tmpPath = filePatch.absolutePath + '.ao-tmp-' + Date.now()
+            await writeFile(tmpPath, patchResult.content, 'utf-8')
+            await rename(tmpPath, filePatch.absolutePath)
+            applySummary.writtenFiles.push(filePatch.absolutePath)
           } catch (err) {
             applySummary.errors.push(
-              `Failed to write ${block.absolutePath}: ${err instanceof Error ? err.message : String(err)}`,
+              `Failed to patch ${filePatch.absolutePath}: ${err instanceof Error ? err.message : String(err)}`,
             )
           }
         }
@@ -601,6 +576,8 @@ export class SingleChallengerRunner implements ProtocolRunner {
       state: 'apply',
       timestamp: new Date().toISOString(),
     })
+
+    return applySummary
   }
 
   /**
@@ -802,7 +779,7 @@ export class SingleChallengerRunner implements ProtocolRunner {
     providerExecutor: ProviderExecutor | ProviderRouter
     roundStore: RoundStore
     eventBus: EventBus
-    renderPrompt: () => RenderedPrompt
+    renderPrompt: () => RenderedPrompt | Promise<RenderedPrompt>
     failurePolicy: FailurePolicy
     isCritical: boolean
   }): Promise<AgentOutput | undefined> {
@@ -831,7 +808,7 @@ export class SingleChallengerRunner implements ProtocolRunner {
 
     try {
       // Render the prompt template
-      const rendered = renderPrompt()
+      const rendered = await renderPrompt()
 
       // Resolve the provider for this agent (supports per-agent routing)
       const agentProvider =
@@ -932,6 +909,220 @@ export class SingleChallengerRunner implements ProtocolRunner {
 
       throw err
     }
+  }
+
+  private async readCurrentScopeSnapshot(job: Job): Promise<{
+    workspaceRoot: string
+    files: Array<{ absolutePath: string; relativePath: string; content: string }>
+    formatted: string
+  }> {
+    const { readFile } = await import('node:fs/promises')
+
+    const scopeFiles =
+      job.targetResolution?.resolvedFiles.length && job.targetResolution.resolvedFiles.length > 0
+        ? job.targetResolution.resolvedFiles
+        : job.scope.primaryTargets
+    const workspaceRoot = this.resolveWorkspaceRoot(job, scopeFiles)
+    const files: Array<{ absolutePath: string; relativePath: string; content: string }> = []
+
+    for (const absolutePath of scopeFiles) {
+      try {
+        const content = await readFile(absolutePath, 'utf-8')
+        files.push({
+          absolutePath,
+          relativePath: this.toRelativePath(workspaceRoot, absolutePath),
+          content,
+        })
+      } catch {
+        // Skip unreadable targets from the live snapshot.
+      }
+    }
+
+    return {
+      workspaceRoot,
+      files,
+      formatted:
+        files.length > 0
+          ? files.map((file) => `--- ${file.relativePath} ---\n${file.content}`).join('\n\n')
+          : '(no readable target files found)',
+    }
+  }
+
+  private resolveWorkspaceRoot(job: Job, scopeFiles: string[]): string {
+    if (job.targetResolution?.workspaceRoot) {
+      return job.targetResolution.workspaceRoot
+    }
+
+    if (scopeFiles.length === 0) {
+      return ''
+    }
+
+    const directories = scopeFiles.map((file) => this.dirname(file).split('/').filter(Boolean))
+    const commonParts: string[] = []
+
+    for (let index = 0; index < directories[0].length; index++) {
+      const segment = directories[0][index]
+      if (directories.every((parts) => parts[index] === segment)) {
+        commonParts.push(segment)
+      } else {
+        break
+      }
+    }
+
+    if (commonParts.length === 0) {
+      return scopeFiles[0].startsWith('/') ? '/' : ''
+    }
+
+    return `${scopeFiles[0].startsWith('/') ? '/' : ''}${commonParts.join('/')}`
+  }
+
+  private dirname(filePath: string): string {
+    const normalized = filePath.replace(/\/+$/, '')
+    const lastSlash = normalized.lastIndexOf('/')
+    if (lastSlash <= 0) {
+      return lastSlash === 0 ? '/' : '.'
+    }
+    return normalized.slice(0, lastSlash)
+  }
+
+  private toRelativePath(workspaceRoot: string, absolutePath: string): string {
+    if (!workspaceRoot || workspaceRoot === '/' || !absolutePath.startsWith(workspaceRoot)) {
+      return absolutePath
+    }
+
+    const trimmed = absolutePath.slice(workspaceRoot.length).replace(/^\/+/, '')
+    return trimmed || absolutePath
+  }
+
+  private applyPatchOperations(params: {
+    original: string
+    operations: PatchOperation[]
+    relativePath: string
+  }): { ok: true; content: string } | { ok: false; reason: string } {
+    const { original, operations, relativePath } = params
+    let nextContent = original
+
+    for (const operation of operations) {
+      const match = this.findUniqueOccurrence(nextContent, operation.target)
+
+      if (!match.ok) {
+        return {
+          ok: false,
+          reason: `${operation.type} target in ${relativePath} ${match.reason}`,
+        }
+      }
+
+      const before = nextContent.slice(0, match.start)
+      const after = nextContent.slice(match.end)
+      const replacement = operation.replacement ?? ''
+
+      if (operation.type === 'replace') {
+        nextContent = before + replacement + after
+        continue
+      }
+
+      if (operation.type === 'delete') {
+        nextContent = before + after
+        continue
+      }
+
+      if (operation.type === 'insert_after') {
+        nextContent = nextContent.slice(0, match.end) + replacement + nextContent.slice(match.end)
+        continue
+      }
+
+      nextContent = nextContent.slice(0, match.start) + replacement + nextContent.slice(match.start)
+    }
+
+    if (original.trim().length > 0 && nextContent.trim().length === 0) {
+      return {
+        ok: false,
+        reason: 'patch would blank the entire file',
+      }
+    }
+
+    return { ok: true, content: nextContent }
+  }
+
+  private findUniqueOccurrence(
+    content: string,
+    target: string,
+  ): { ok: true; start: number; end: number } | { ok: false; reason: string } {
+    const firstIndex = content.indexOf(target)
+    if (firstIndex === -1) {
+      return { ok: false, reason: 'was not found' }
+    }
+
+    const secondIndex = content.indexOf(target, firstIndex + Math.max(target.length, 1))
+    if (secondIndex !== -1) {
+      return { ok: false, reason: 'is ambiguous' }
+    }
+
+    return {
+      ok: true,
+      start: firstIndex,
+      end: firstIndex + target.length,
+    }
+  }
+
+  private mergeApplySummaries(base: ApplySummary | undefined, next: ApplySummary): ApplySummary {
+    if (!base) {
+      return {
+        attemptedFiles: [...next.attemptedFiles],
+        writtenFiles: [...next.writtenFiles],
+        unchangedFiles: [...next.unchangedFiles],
+        skippedFiles: [...next.skippedFiles],
+        errors: [...next.errors],
+      }
+    }
+
+    return {
+      attemptedFiles: this.mergeStringList(base.attemptedFiles, next.attemptedFiles),
+      writtenFiles: this.mergeStringList(base.writtenFiles, next.writtenFiles),
+      unchangedFiles: this.mergeStringList(base.unchangedFiles, next.unchangedFiles).filter(
+        (file) => !next.writtenFiles.includes(file),
+      ),
+      skippedFiles: this.mergeSkippedFiles(base.skippedFiles, next.skippedFiles),
+      errors: this.mergeStringList(base.errors, next.errors),
+    }
+  }
+
+  private mergeStringList(existing: string[], next: string[]): string[] {
+    return [...new Set([...existing, ...next])]
+  }
+
+  private mergeSkippedFiles(
+    existing: Array<{ path: string; reason: string }>,
+    next: Array<{ path: string; reason: string }>,
+  ): Array<{ path: string; reason: string }> {
+    const merged = new Map<string, { path: string; reason: string }>()
+    for (const entry of [...existing, ...next]) {
+      merged.set(`${entry.path}::${entry.reason}`, entry)
+    }
+    return [...merged.values()]
+  }
+
+  private selectAcknowledgedReviewerFindings(
+    reviewerFindings: Finding[],
+    architectResponseText: string,
+  ): Finding[] {
+    if (reviewerFindings.length === 0 || !architectResponseText.trim()) {
+      return []
+    }
+
+    const acknowledgedTitles = new Set(
+      [...architectResponseText.matchAll(/^\*{0,2}Acknowledged:\s*(.+?)\*{0,2}\s*$/gim)]
+        .map((match) => match[1]?.trim().toLowerCase())
+        .filter((value): value is string => Boolean(value)),
+    )
+
+    if (acknowledgedTitles.size === 0) {
+      return []
+    }
+
+    return reviewerFindings.filter((finding) =>
+      acknowledgedTitles.has(finding.title.trim().toLowerCase()),
+    )
   }
 
   /**

@@ -25,7 +25,7 @@ ao run --target ./docs/phase-plan.md --superpower plan-review
 # Iterative debate — architect and reviewer go back and forth until convergence
 ao run --target ./docs/plan.md --superpower plan-review --max-rounds 10
 
-# Review + auto-apply fixes to the original file
+# Review + auto-apply patch fixes into the original file
 ao run --target ./docs/plan.md --superpower plan-review --max-rounds 10 --auto-apply
 
 # Use specific providers for each agent
@@ -67,11 +67,12 @@ The `plan-review` superpower uses the `single_challenger` protocol with iterativ
 
 1. **Architect analysis** — scans the plan document for structural issues, missing steps, and sequencing problems
 2. **Reviewer challenge** — reviews through the `implementation_readiness` lens, challenging assumptions and identifying gaps
-3. **Architect response** — acknowledges valid findings, applies them, counter-argues where needed, discovers new issues from the debate
-4. **Reviewer follow-up** — re-reads the original document, verifies the architect's response against the source, finds remaining gaps
-5. Steps 3-4 repeat until the reviewer finds no new issues (**convergence**) or max rounds is reached
-6. **Synthesis** — all findings are deduplicated and prioritized
-7. **Auto-apply** (if `--auto-apply`) — architect rewrites the original file incorporating all confirmed fixes
+3. **Architect response** — reviews each reviewer finding, explicitly acknowledges or disputes it, and discovers new issues from the debate
+4. **Auto-apply** (if enabled) — architect patches the live document in place using exact-match edit operations, but only for reviewer findings the architect explicitly acknowledged
+5. **Reviewer follow-up** — re-reads the patched document, verifies the architect's response against the current source, finds remaining gaps
+6. Steps 3-5 repeat until the reviewer finds no new issues (**convergence**) or max rounds is reached
+7. **Synthesis** — all findings are deduplicated and prioritized
+8. **Final check** — reviewer compares the final artifact against the original baseline snapshot
 
 ### Max rounds
 
@@ -119,4 +120,4 @@ Plan review produces findings in the standard format, but with plan-appropriate 
 | Approval required | No |
 | Capabilities | None (prompt-only) |
 | Recommended max rounds | 7-10 |
-| Auto-apply | Supported (rewrites plan with fixes) |
+| Auto-apply | Supported (patches plan in place, preserving untouched content) |

@@ -13,10 +13,15 @@ This is NOT a simple rebuttal. You must:
 3. DISPUTE with evidence where you disagree — cite specific reasons, not just opinions
 4. DISCOVER new issues — the reviewer's findings may reveal problems you missed. Report them as new findings.
 
+Only findings you explicitly mark as "Acknowledged" will be eligible for the inline patch phase. Disputed findings must remain disputed until the debate resolves them.
+
 Be rigorous. The goal is convergence through genuine understanding, not agreement for its own sake.`,
 
   userPromptTemplate: `## Brief
 {{brief}}
+
+## Current Source Snapshot
+{{current_content}}
 
 ## Scope
 {{scope}}
@@ -35,7 +40,7 @@ For each reviewer finding:
 - If partially valid: accept the valid part, dispute the rest with evidence
 - If invalid: explain why with specific reasoning
 
-Then check: has this discussion revealed any NEW issues not yet covered? Report them as new findings.`,
+Then check the current source snapshot again: has this discussion revealed any NEW issues not yet covered? Report them as new findings.`,
 
   outputFormatInstructions: `## Output Format
 

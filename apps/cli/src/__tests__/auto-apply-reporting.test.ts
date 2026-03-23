@@ -9,7 +9,15 @@ let parseApplyOutput: (
   scopeFiles: string[],
   workspacePath: string,
 ) => {
-  fileBlocks: Array<{ relativePath: string; absolutePath: string; content: string }>
+  filePatches: Array<{
+    relativePath: string
+    absolutePath: string
+    operations: Array<{
+      type: 'replace' | 'delete' | 'insert_after' | 'insert_before'
+      target: string
+      replacement?: string
+    }>
+  }>
   skippedFiles: Array<{ path: string; reason: string }>
   errors: string[]
 }
@@ -20,45 +28,81 @@ try {
   parseApplyOutput = mod.parseApplyOutput
 } catch {
   // Will be defined after implementation
-  parseApplyOutput = () => ({ fileBlocks: [], skippedFiles: [], errors: ['not implemented'] })
+  parseApplyOutput = () => ({ filePatches: [], skippedFiles: [], errors: ['not implemented'] })
 }
 
-describe('parseApplyOutput — multi-file block parser', () => {
+describe('parseApplyOutput — patch parser', () => {
   const scopeFiles = ['/ws/docs/plan.md', '/ws/docs/spec.md', '/ws/src/index.ts']
   const workspacePath = '/ws'
 
-  it('parses valid multi-file blocks', () => {
+  it('parses valid patch blocks with multiple operations', () => {
     const raw = [
-      '=== FILE: docs/plan.md ===',
-      'updated plan content',
-      '=== END FILE ===',
+      '=== PATCH: docs/plan.md ===',
+      '@@ REPLACE',
+      'Old section',
+      '@@ WITH',
+      'New section',
+      '@@ END',
+      '@@ INSERT AFTER',
+      '## Risks',
+      '@@ WITH',
+      '- Add rollout gate',
+      '@@ END',
+      '=== END PATCH ===',
       '',
-      '=== FILE: docs/spec.md ===',
-      'updated spec content',
-      '=== END FILE ===',
+      '=== PATCH: docs/spec.md ===',
+      '@@ DELETE',
+      'Temporary note',
+      '@@ END',
+      '=== END PATCH ===',
     ].join('\n')
 
     const result = parseApplyOutput(raw, scopeFiles, workspacePath)
-    expect(result.fileBlocks).toHaveLength(2)
-    expect(result.fileBlocks[0].relativePath).toBe('docs/plan.md')
-    expect(result.fileBlocks[0].content).toBe('updated plan content')
-    expect(result.fileBlocks[1].relativePath).toBe('docs/spec.md')
+    expect(result.filePatches).toHaveLength(2)
+    expect(result.filePatches[0].relativePath).toBe('docs/plan.md')
+    expect(result.filePatches[0].operations).toEqual([
+      {
+        type: 'replace',
+        target: 'Old section',
+        replacement: 'New section',
+      },
+      {
+        type: 'insert_after',
+        target: '## Risks',
+        replacement: '- Add rollout gate',
+      },
+    ])
+    expect(result.filePatches[1].relativePath).toBe('docs/spec.md')
+    expect(result.filePatches[1].operations).toEqual([
+      {
+        type: 'delete',
+        target: 'Temporary note',
+      },
+    ])
     expect(result.errors).toHaveLength(0)
   })
 
   it('skips out-of-scope file blocks', () => {
     const raw = [
-      '=== FILE: docs/plan.md ===',
-      'content',
-      '=== END FILE ===',
+      '=== PATCH: docs/plan.md ===',
+      '@@ REPLACE',
+      'old',
+      '@@ WITH',
+      'new',
+      '@@ END',
+      '=== END PATCH ===',
       '',
-      '=== FILE: secret/passwords.txt ===',
-      'should not write',
-      '=== END FILE ===',
+      '=== PATCH: secret/passwords.txt ===',
+      '@@ REPLACE',
+      'secret',
+      '@@ WITH',
+      'redacted',
+      '@@ END',
+      '=== END PATCH ===',
     ].join('\n')
 
     const result = parseApplyOutput(raw, scopeFiles, workspacePath)
-    expect(result.fileBlocks).toHaveLength(1)
+    expect(result.filePatches).toHaveLength(1)
     expect(result.skippedFiles).toHaveLength(1)
     expect(result.skippedFiles[0].path).toBe('secret/passwords.txt')
     expect(result.skippedFiles[0].reason).toContain('scope')
@@ -66,37 +110,55 @@ describe('parseApplyOutput — multi-file block parser', () => {
 
   it('skips duplicate file blocks', () => {
     const raw = [
-      '=== FILE: docs/plan.md ===',
+      '=== PATCH: docs/plan.md ===',
+      '@@ REPLACE',
       'first version',
-      '=== END FILE ===',
-      '',
-      '=== FILE: docs/plan.md ===',
+      '@@ WITH',
       'second version',
-      '=== END FILE ===',
+      '@@ END',
+      '=== END PATCH ===',
+      '',
+      '=== PATCH: docs/plan.md ===',
+      '@@ REPLACE',
+      'second version',
+      '@@ WITH',
+      'third version',
+      '@@ END',
+      '=== END PATCH ===',
     ].join('\n')
 
     const result = parseApplyOutput(raw, scopeFiles, workspacePath)
-    expect(result.fileBlocks).toHaveLength(1)
-    expect(result.fileBlocks[0].content).toBe('first version')
+    expect(result.filePatches).toHaveLength(1)
+    expect(result.filePatches[0].operations[0]).toEqual({
+      type: 'replace',
+      target: 'first version',
+      replacement: 'second version',
+    })
     expect(result.skippedFiles).toHaveLength(1)
     expect(result.skippedFiles[0].reason).toContain('duplicate')
   })
 
-  it('returns whole-response error when no file blocks can be parsed', () => {
+  it('returns whole-response error when no patch blocks can be parsed', () => {
     const raw = 'This is just some text without any file framing.'
 
     const result = parseApplyOutput(raw, scopeFiles, workspacePath)
-    expect(result.fileBlocks).toHaveLength(0)
+    expect(result.filePatches).toHaveLength(0)
     expect(result.errors.length).toBeGreaterThan(0)
-    expect(result.errors[0]).toContain('no valid file blocks')
+    expect(result.errors[0]).toContain('no valid patch blocks')
   })
 
-  it('handles empty content between markers', () => {
-    const raw = ['=== FILE: docs/plan.md ===', '', '=== END FILE ==='].join('\n')
+  it('reports malformed operations inside a valid patch block', () => {
+    const raw = [
+      '=== PATCH: docs/plan.md ===',
+      '@@ REPLACE',
+      'old',
+      '@@ END',
+      '=== END PATCH ===',
+    ].join('\n')
 
     const result = parseApplyOutput(raw, scopeFiles, workspacePath)
-    expect(result.fileBlocks).toHaveLength(1)
-    expect(result.fileBlocks[0].content).toBe('')
+    expect(result.filePatches).toHaveLength(0)
+    expect(result.errors.some((error) => error.includes('docs/plan.md'))).toBe(true)
   })
 })
 

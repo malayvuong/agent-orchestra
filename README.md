@@ -52,10 +52,11 @@ Agent Orchestra runs LLM agents through a structured **iterative debate** protoc
 
 1. **Architect** analyzes the target (code or plan)
 2. **Reviewer** challenges the analysis through a specific lens (security, testing, scope, etc.)
-3. **Architect** acknowledges valid findings, applies them, counter-argues where needed, discovers new issues
-4. **Reviewer** re-reads the original source, verifies the architect's response, finds more gaps
-5. Repeat until **no new findings** — debate converges naturally
-6. **Auto-apply** rewrites the original file incorporating all confirmed fixes
+3. **Architect** reviews each reviewer finding, explicitly acknowledges or disputes it, and discovers new issues
+4. **Auto-apply** patches the live file in place when enabled, but only for architect-acknowledged findings
+5. **Reviewer** re-reads the patched source, verifies the architect's response, finds more gaps
+6. Repeat until **no new findings** — debate converges naturally
+7. **Final check** compares the final artifact against the original baseline snapshot
 
 Every review produces **concrete, classified findings** — not vague prose. Each finding has an actionability level (`must_fix_now`, `follow_up_candidate`, `note_only`) and a confidence rating.
 
@@ -215,10 +216,11 @@ ao run --target plan.md --superpower plan-review --max-rounds 10 --auto-apply
   │  │  Round 5: Reviewer → 0 new findings → CONVERGED  │
   │  └──────────────────────────────────────────────────┘
   │
-  │  4. Synthesize + deduplicate findings
-  │  5. Auto-apply: rewrite original file with fixes
+  │  4. Inline auto-apply: patch only acknowledged findings
+  │  5. Reviewer re-reads patched file, continue until converged
+  │  6. Synthesize + final-check against baseline
   │
-  → Updated file + findings summary
+  → Patched file + findings summary + final-check verdict
 ```
 
 ## CLI Commands
@@ -230,7 +232,7 @@ ao run --target plan.md --superpower plan-review --max-rounds 10 --auto-apply
 | `init` | Auto-detect providers, generate `agents.yaml` + `AGENTS.md` |
 | `run --target <path> --superpower <id>` | Run a multi-agent review |
 | `run ... --max-rounds <n>` | Max persisted protocol steps before convergence/apply/final_check (default: 10) |
-| `run ... --auto-apply` | Auto-apply confirmed findings to the original file |
+| `run ... --auto-apply` | Patch confirmed findings into the original file without full rewrite |
 | `run ... --architect-provider <name>` | Override architect's provider |
 | `run ... --reviewer-provider <name>` | Override reviewer's provider |
 | `superpowers list` | List available superpowers |

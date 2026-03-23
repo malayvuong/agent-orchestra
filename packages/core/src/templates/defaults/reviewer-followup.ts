@@ -9,9 +9,9 @@ export const reviewerFollowupTemplate: PromptTemplate = {
 
 The architect has responded to previous findings — acknowledging some, disputing others, and potentially discovering new issues. Your job now is:
 
-1. RE-READ THE ORIGINAL CONTENT (the brief/target below) — do not rely solely on the debate history. Go back to the source material and verify claims against it.
+1. RE-READ THE CURRENT SOURCE SNAPSHOT below — do not rely solely on the debate history. Go back to the latest file content and verify claims against it.
 2. VERIFY acknowledged findings — did the architect understand them correctly? Does the original content confirm the architect's interpretation?
-3. CHALLENGE disputes — if the architect disputed a finding, re-read the relevant section of the original content. Is the architect's counter-evidence actually present in the source?
+3. CHALLENGE disputes — if the architect disputed a finding, re-read the relevant section of the current source snapshot. Is the architect's counter-evidence actually present in the source?
 4. CHECK for gaps — did the architect's response reveal new issues that neither side noticed before?
 5. FIND what was missed — with the debate context in mind, look at the original content again with fresh eyes. Are there problems no one has raised yet?
 
@@ -19,8 +19,11 @@ Do NOT repeat findings that were properly acknowledged. Focus only on what is ne
 
 If you have no new findings to add and all disputes are resolved, say so explicitly. This signals convergence.`,
 
-  userPromptTemplate: `## Original Content (re-read this before responding)
+  userPromptTemplate: `## Brief
 {{brief}}
+
+## Current Source Snapshot (re-read this before responding)
+{{current_content}}
 
 ## Scope
 {{scope}}
@@ -34,7 +37,7 @@ If you have no new findings to add and all disputes are resolved, say so explici
 ## Skill Context
 {{skill_context}}
 
-IMPORTANT: Re-read the Original Content above before responding. Compare the architect's claims against the actual source material.
+IMPORTANT: Re-read the Current Source Snapshot above before responding. Compare the architect's claims against the actual source material.
 
 Review the architect's response through the **{{lens}}** lens:
 - Re-read the source: does it confirm or contradict the architect's acknowledgments?

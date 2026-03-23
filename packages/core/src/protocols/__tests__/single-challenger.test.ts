@@ -162,6 +162,25 @@ function makeMockDeps(): {
     run: vi.fn().mockImplementation(() => {
       providerCallCount.count++
       const n = providerCallCount.count
+      if (n === 3) {
+        return Promise.resolve(
+          makeMockProviderOutput(
+            [
+              '### Acknowledged Findings',
+              '',
+              '**Acknowledged: SQL injection vulnerability**',
+              '- **Impact:** This issue is valid and needs a targeted fix.',
+              '- **Applied:** Tighten the plan around query validation.',
+              '',
+              '### Disputed Findings',
+              '',
+              '**Disputed: Missing input validation**',
+              '- **Reason:** The existing boundary check is sufficient here.',
+              '- **Counter-evidence:** Validation already exists upstream.',
+            ].join('\n'),
+          ),
+        )
+      }
       return Promise.resolve(makeMockProviderOutput(`Response ${n} from mock provider`))
     }),
   }
@@ -479,22 +498,45 @@ describe('SingleChallengerRunner', () => {
     expect(finalCheckRound?.finalCheckSummary).toBeDefined()
   })
 
-  it('uses workspace-relative file labels in the single-file apply prompt', async () => {
+  it('applies patch operations without replacing untouched file content', async () => {
     const workspaceRoot = await mkdtemp(join(tmpdir(), 'ao-single-apply-'))
     tempDirs.push(workspaceRoot)
 
-    const targetPath = join(workspaceRoot, 'src', 'index.ts')
-    await mkdir(join(workspaceRoot, 'src'), { recursive: true })
-    await writeFile(targetPath, 'export const value = 1\n', 'utf-8')
+    const targetPath = join(workspaceRoot, 'docs', 'plan.md')
+    await mkdir(join(workspaceRoot, 'docs'), { recursive: true })
+    await writeFile(
+      targetPath,
+      ['# Plan', '', 'Intro stays.', '', 'Old section', '', 'Footer stays.'].join('\n'),
+      'utf-8',
+    )
 
     const { deps, savedRounds } = makeMockDeps()
     const providerCalls: Array<{ userPrompt: string }> = []
     ;(deps as Record<string, unknown>).providerExecutor = {
       run: vi.fn().mockImplementation(async (input: { userPrompt: string }) => {
         providerCalls.push({ userPrompt: input.userPrompt })
+        if (providerCalls.length === 3) {
+          return makeMockProviderOutput(
+            [
+              '### Acknowledged Findings',
+              '',
+              '**Acknowledged: SQL injection vulnerability**',
+              '- **Impact:** The plan section is incomplete.',
+              '- **Applied:** Replace the outdated section.',
+            ].join('\n'),
+          )
+        }
         if (providerCalls.length === 4) {
           return makeMockProviderOutput(
-            ['=== FILE: src/index.ts ===', 'export const value = 2', '=== END FILE ==='].join('\n'),
+            [
+              '=== PATCH: docs/plan.md ===',
+              '@@ REPLACE',
+              'Old section',
+              '@@ WITH',
+              'New section',
+              '@@ END',
+              '=== END PATCH ===',
+            ].join('\n'),
           )
         }
         if (providerCalls.length === 5) {
@@ -531,6 +573,20 @@ describe('SingleChallengerRunner', () => {
         discovery: [{ path: targetPath, reason: 'entry' }],
         workspaceRoot,
       } as Job['targetResolution'],
+      baselineSnapshot: {
+        fingerprint: 'fp-patch',
+        capturedAt: '2026-03-23T00:00:00Z',
+        files: [
+          {
+            path: targetPath,
+            relativePath: 'docs/plan.md',
+            content: ['# Plan', '', 'Intro stays.', '', 'Old section', '', 'Footer stays.'].join(
+              '\n',
+            ),
+            sha256: 'sha-patch',
+          },
+        ],
+      },
       runtimeConfig: {
         maxConcurrentAgents: 2,
         pausePointsEnabled: false,
@@ -542,13 +598,343 @@ describe('SingleChallengerRunner', () => {
     await runner.execute(job, deps)
 
     expect(providerCalls).toHaveLength(5)
-    expect(providerCalls[3].userPrompt).toContain('--- src/index.ts ---')
+    expect(providerCalls[3].userPrompt).toContain('--- docs/plan.md ---')
 
     const applyRound = savedRounds.find((round) => round.state === 'apply')
     expect(applyRound?.applySummary?.writtenFiles).toContain(targetPath)
     const finalCheckRound = savedRounds.find((round) => round.state === 'final_check')
     expect(finalCheckRound?.finalCheckSummary?.verdict).toBe('improved')
-    expect(await readFile(targetPath, 'utf-8')).toBe('export const value = 2')
+    expect(await readFile(targetPath, 'utf-8')).toBe(
+      ['# Plan', '', 'Intro stays.', '', 'New section', '', 'Footer stays.'].join('\n'),
+    )
+  })
+
+  it('lets reviewer follow-up read the patched file snapshot, not only the original brief', async () => {
+    const workspaceRoot = await mkdtemp(join(tmpdir(), 'ao-followup-apply-'))
+    tempDirs.push(workspaceRoot)
+
+    const targetPath = join(workspaceRoot, 'docs', 'plan.md')
+    await mkdir(join(workspaceRoot, 'docs'), { recursive: true })
+    await writeFile(targetPath, ['Line A', 'Line B', 'Line C'].join('\n'), 'utf-8')
+
+    const { deps } = makeMockDeps()
+    const providerCalls: Array<{ userPrompt: string }> = []
+    ;(deps as Record<string, unknown>).providerExecutor = {
+      run: vi.fn().mockImplementation(async (input: { userPrompt: string }) => {
+        providerCalls.push({ userPrompt: input.userPrompt })
+        if (providerCalls.length === 3) {
+          return makeMockProviderOutput(
+            [
+              '### Acknowledged Findings',
+              '',
+              '**Acknowledged: Reviewer finding A**',
+              '- **Impact:** The middle line should be updated.',
+              '- **Applied:** Patch the line before the next review pass.',
+            ].join('\n'),
+          )
+        }
+        if (providerCalls.length === 4) {
+          return makeMockProviderOutput(
+            [
+              '=== PATCH: docs/plan.md ===',
+              '@@ REPLACE',
+              'Line B',
+              '@@ WITH',
+              'Line B updated',
+              '@@ END',
+              '=== END PATCH ===',
+            ].join('\n'),
+          )
+        }
+        if (providerCalls.length === 5) {
+          return makeMockProviderOutput('No new findings. Debate converged.')
+        }
+        if (providerCalls.length === 6) {
+          return makeMockProviderOutput(
+            [
+              '## Verdict',
+              'improved',
+              '',
+              '## Score',
+              '90',
+              '',
+              '## Summary',
+              'Patched file is better than baseline.',
+            ].join('\n'),
+          )
+        }
+        return makeMockProviderOutput(`Response ${providerCalls.length}`)
+      }),
+    }
+
+    let normalizeCount = 0
+    ;(deps as Record<string, unknown>).outputNormalizer = {
+      normalize: vi.fn().mockImplementation((output: ProviderOutput) => {
+        normalizeCount++
+        if (normalizeCount === 1) {
+          return makeMockNormalizationResult(output.rawText, ['Initial architect finding'])
+        }
+        if (normalizeCount === 2) {
+          return makeMockNormalizationResult(output.rawText, ['Reviewer finding A'])
+        }
+        if (normalizeCount === 3) {
+          return makeMockNormalizationResult(output.rawText, ['Acknowledged finding A'])
+        }
+        return makeMockNormalizationResult(output.rawText, [])
+      }),
+    }
+
+    const job = makeJob({
+      maxRounds: 7,
+      scope: {
+        primaryTargets: [targetPath],
+        excludedTargets: [],
+        referencePolicy: { enabled: false, depth: 'same_file' },
+        outOfScopeHandling: 'ignore',
+        allowDebateExpansion: false,
+      },
+      targetResolution: {
+        entryTarget: targetPath,
+        entryKind: 'file',
+        resolvedFiles: [targetPath],
+        discovery: [{ path: targetPath, reason: 'entry' }],
+        workspaceRoot,
+      } as Job['targetResolution'],
+      baselineSnapshot: {
+        fingerprint: 'fp-followup',
+        capturedAt: '2026-03-23T00:00:00Z',
+        files: [
+          {
+            path: targetPath,
+            relativePath: 'docs/plan.md',
+            content: ['Line A', 'Line B', 'Line C'].join('\n'),
+            sha256: 'sha-followup',
+          },
+        ],
+      },
+      runtimeConfig: {
+        maxConcurrentAgents: 2,
+        pausePointsEnabled: false,
+        synthesisConfig: { provider: 'architect_provider', rerunnable: false },
+        autoApply: true,
+      },
+    })
+
+    await runner.execute(job, deps)
+
+    expect(providerCalls).toHaveLength(6)
+    expect(providerCalls[4].userPrompt).toContain('Line B updated')
+    expect(providerCalls[4].userPrompt).not.toContain('Line B\nLine C')
+  })
+
+  it('refuses patches that would blank a non-empty file and preserves the original content', async () => {
+    const workspaceRoot = await mkdtemp(join(tmpdir(), 'ao-blank-guard-'))
+    tempDirs.push(workspaceRoot)
+
+    const targetPath = join(workspaceRoot, 'docs', 'plan.md')
+    await mkdir(join(workspaceRoot, 'docs'), { recursive: true })
+    await writeFile(targetPath, ['# Plan', '', 'Only content.'].join('\n'), 'utf-8')
+
+    const { deps, savedRounds } = makeMockDeps()
+    let providerCallIndex = 0
+    ;(deps as Record<string, unknown>).providerExecutor = {
+      run: vi.fn().mockImplementation(async (_input: { userPrompt: string }) => {
+        providerCallIndex++
+        if (providerCallIndex === 3) {
+          return makeMockProviderOutput(
+            [
+              '### Acknowledged Findings',
+              '',
+              '**Acknowledged: SQL injection vulnerability**',
+              '- **Impact:** The content should be removed.',
+              '- **Applied:** Apply the requested deletion.',
+            ].join('\n'),
+          )
+        }
+        if (providerCallIndex === 4) {
+          return makeMockProviderOutput(
+            [
+              '=== PATCH: docs/plan.md ===',
+              '@@ DELETE',
+              '# Plan',
+              '',
+              'Only content.',
+              '@@ END',
+              '=== END PATCH ===',
+            ].join('\n'),
+          )
+        }
+        if (providerCallIndex === 5) {
+          return makeMockProviderOutput(
+            [
+              '## Verdict',
+              'unchanged',
+              '',
+              '## Score',
+              '55',
+              '',
+              '## Summary',
+              'Unsafe blanking patch was rejected.',
+            ].join('\n'),
+          )
+        }
+        return makeMockProviderOutput(`Response ${providerCallIndex}`)
+      }),
+    }
+
+    const job = makeJob({
+      maxRounds: 6,
+      scope: {
+        primaryTargets: [targetPath],
+        excludedTargets: [],
+        referencePolicy: { enabled: false, depth: 'same_file' },
+        outOfScopeHandling: 'ignore',
+        allowDebateExpansion: false,
+      },
+      targetResolution: {
+        entryTarget: targetPath,
+        entryKind: 'file',
+        resolvedFiles: [targetPath],
+        discovery: [{ path: targetPath, reason: 'entry' }],
+        workspaceRoot,
+      } as Job['targetResolution'],
+      baselineSnapshot: {
+        fingerprint: 'fp-blank-guard',
+        capturedAt: '2026-03-23T00:00:00Z',
+        files: [
+          {
+            path: targetPath,
+            relativePath: 'docs/plan.md',
+            content: ['# Plan', '', 'Only content.'].join('\n'),
+            sha256: 'sha-blank-guard',
+          },
+        ],
+      },
+      runtimeConfig: {
+        maxConcurrentAgents: 2,
+        pausePointsEnabled: false,
+        synthesisConfig: { provider: 'architect_provider', rerunnable: false },
+        autoApply: true,
+      },
+    })
+
+    await runner.execute(job, deps)
+
+    const applyRound = savedRounds.find((round) => round.state === 'apply')
+    expect(applyRound?.applySummary?.writtenFiles).toEqual([])
+    expect(applyRound?.applySummary?.skippedFiles).toContainEqual(
+      expect.objectContaining({
+        path: 'docs/plan.md',
+        reason: expect.stringContaining('blank'),
+      }),
+    )
+    expect(await readFile(targetPath, 'utf-8')).toBe(['# Plan', '', 'Only content.'].join('\n'))
+  })
+
+  it('does not auto-apply reviewer findings until the architect explicitly acknowledges them', async () => {
+    const workspaceRoot = await mkdtemp(join(tmpdir(), 'ao-ack-gate-'))
+    tempDirs.push(workspaceRoot)
+
+    const targetPath = join(workspaceRoot, 'docs', 'plan.md')
+    await mkdir(join(workspaceRoot, 'docs'), { recursive: true })
+    await writeFile(targetPath, ['Line A', 'Line B', 'Line C'].join('\n'), 'utf-8')
+
+    const { deps, savedRounds } = makeMockDeps()
+    const providerCalls: Array<{ userPrompt: string }> = []
+    ;(deps as Record<string, unknown>).providerExecutor = {
+      run: vi.fn().mockImplementation(async (input: { userPrompt: string }) => {
+        providerCalls.push({ userPrompt: input.userPrompt })
+        if (providerCalls.length === 3) {
+          return makeMockProviderOutput(
+            [
+              '### Disputed Findings',
+              '',
+              '**Disputed: Reviewer finding A**',
+              '- **Reason:** The requested change is not justified.',
+              '- **Counter-evidence:** The current text is already sufficient.',
+              '',
+              '### New Findings Discovered',
+              '',
+              'No new findings.',
+            ].join('\n'),
+          )
+        }
+        if (providerCalls.length === 5) {
+          return makeMockProviderOutput(
+            [
+              '## Verdict',
+              'unchanged',
+              '',
+              '## Score',
+              '55',
+              '',
+              '## Summary',
+              'No architect-acknowledged reviewer findings were applied.',
+            ].join('\n'),
+          )
+        }
+        return makeMockProviderOutput(`Response ${providerCalls.length}`)
+      }),
+    }
+
+    let normalizeCount = 0
+    ;(deps as Record<string, unknown>).outputNormalizer = {
+      normalize: vi.fn().mockImplementation((output: ProviderOutput) => {
+        normalizeCount++
+        if (normalizeCount === 1) {
+          return makeMockNormalizationResult(output.rawText, ['Initial architect finding'])
+        }
+        if (normalizeCount === 2) {
+          return makeMockNormalizationResult(output.rawText, ['Reviewer finding A'])
+        }
+        if (normalizeCount === 3) {
+          return makeMockNormalizationResult(output.rawText, [])
+        }
+        return makeMockNormalizationResult(output.rawText, [])
+      }),
+    }
+
+    const job = makeJob({
+      maxRounds: 6,
+      scope: {
+        primaryTargets: [targetPath],
+        excludedTargets: [],
+        referencePolicy: { enabled: false, depth: 'same_file' },
+        outOfScopeHandling: 'ignore',
+        allowDebateExpansion: false,
+      },
+      targetResolution: {
+        entryTarget: targetPath,
+        entryKind: 'file',
+        resolvedFiles: [targetPath],
+        discovery: [{ path: targetPath, reason: 'entry' }],
+        workspaceRoot,
+      } as Job['targetResolution'],
+      baselineSnapshot: {
+        fingerprint: 'fp-ack-gate',
+        capturedAt: '2026-03-23T00:00:00Z',
+        files: [
+          {
+            path: targetPath,
+            relativePath: 'docs/plan.md',
+            content: ['Line A', 'Line B', 'Line C'].join('\n'),
+            sha256: 'sha-ack-gate',
+          },
+        ],
+      },
+      runtimeConfig: {
+        maxConcurrentAgents: 2,
+        pausePointsEnabled: false,
+        synthesisConfig: { provider: 'architect_provider', rerunnable: false },
+        autoApply: true,
+      },
+    })
+
+    await runner.execute(job, deps)
+
+    expect(providerCalls).toHaveLength(5)
+    expect(savedRounds.some((round) => round.state === 'apply')).toBe(false)
+    expect(await readFile(targetPath, 'utf-8')).toBe(['Line A', 'Line B', 'Line C'].join('\n'))
   })
 
   it('persists a final_check round with baseline-aware summary', async () => {

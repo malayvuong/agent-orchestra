@@ -178,3 +178,5 @@ After init, run your first review:
 ao run --target ./src --superpower security-review
 ao run --target ./docs/plan.md --superpower plan-review --max-rounds 10 --auto-apply
 ```
+
+When `--auto-apply` is enabled, Agent Orchestra patches the target file in place only for reviewer findings the architect explicitly acknowledged, and the reviewer re-reads that updated snapshot on the next round.
