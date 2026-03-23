@@ -1,43 +1,54 @@
 # @malayvuong/agent-orchestra
 
-Structured multi-agent review for plans and code, packaged as a CLI.
+CLI for Agent Orchestra.
 
-## Fastest Path
+Agent Orchestra reviews specs, plans, and code through an iterative architect-vs-reviewer workflow, then patches acknowledged fixes back into the original file when `--auto-apply` is enabled.
+
+## Install
 
 ```bash
-# install from npm
 npm install -g @malayvuong/agent-orchestra
-ao init
-ao run --target ./docs/spec.md --superpower plan-review --max-rounds 10 --auto-apply
 ```
 
 Requires Node.js `>= 20`.
 
-`ao` is the short command. `agent-orchestra` is also available.
+Commands:
+- `ao`
+- `agent-orchestra`
 
-## Use This Repo Directly
-
-If you are developing Agent Orchestra itself and do not want to install from npm:
-
-```bash
-pnpm install
-pnpm link:ao
-ao --help
-```
-
-## Quick Start
+## Fastest Path
 
 ```bash
 ao init
+ao run --target ./docs/spec.md --superpower plan-review --max-rounds 10 --auto-apply
+```
+
+Check results:
+
+```bash
+ao job list
+ao job show <job-id>
+```
+
+## Common Commands
+
+```bash
+# review a plan or spec
+ao run --target ./docs/plan.md --superpower plan-review --max-rounds 10
+
+# review and patch the file in place
 ao run --target ./docs/plan.md --superpower plan-review --max-rounds 10 --auto-apply
+
+# security review for code
+ao run --target ./src --superpower security-review
+
+# MCP server
 ao serve --mcp
 ```
 
-`--auto-apply` patches the live file in place. It does not replace the whole file with model-generated content, and it only applies reviewer findings that the architect explicitly acknowledged.
+`--auto-apply` is patch-based. It does not replace the whole file with generated content, and it only applies reviewer findings the architect explicitly acknowledged.
 
-## Default Models
-
-`ao init` and provider auto-resolution use these defaults:
+## Provider Defaults
 
 | Provider | Default model |
 |---|---|
@@ -52,7 +63,7 @@ If your workspace already has an older `.agent-orchestra/agents.yaml`, refresh i
 ao init --refresh-agents
 ```
 
-## Docs
+## More Docs
 
 - Repository: <https://github.com/malayvuong/agent-orchestra>
-- Full usage guide: <https://github.com/malayvuong/agent-orchestra#readme>
+- Full README: <https://github.com/malayvuong/agent-orchestra#readme>

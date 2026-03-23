@@ -1,287 +1,175 @@
 # Agent Orchestra
 
-Structured multi-agent review for plans and code — so nothing ships without a checklist, a debate, and a paper trail.
+Structured multi-agent review for specs, plans, and code.
+
+Agent Orchestra runs an architect-reviewer loop instead of a one-shot prompt. It finds issues, argues through them, patches acknowledged fixes back into the original file, and keeps a full round history so you can inspect what happened.
+
+## Install in 1 Minute
 
 ```bash
-# Review a plan — find gaps, fix them automatically
-ao run --target ./docs/plan.md --superpower plan-review --auto-apply
-
-# Security audit a codebase against OWASP Top 10
-ao run --target ./src --superpower security-review
-
-# Deep iterative debate (architect + reviewer go back and forth)
-ao run --target ./docs/plan.md --superpower plan-review --max-rounds 10 --auto-apply
+npm install -g @malayvuong/agent-orchestra
 ```
+
+Requires Node.js `>= 20`.
+
+The CLI command is `ao`. `agent-orchestra` also works.
 
 ## Fastest Path
 
-If your goal is simply “install it and review one spec”, do this:
+If you want to review one spec right now:
 
 ```bash
-# once, on your machine
-npm install -g @malayvuong/agent-orchestra
-
-# then, in the project you want to review
-cd /path/to/project
+# inside the project you want to review
 ao init
-ao run --target ./docs/spec.md --superpower plan-review --auto-apply
+ao run --target ./docs/spec.md --superpower plan-review --max-rounds 10 --auto-apply
 ```
 
-If `ao init` finds an older `.agent-orchestra/agents.yaml`, it now asks whether to refresh that file. For non-interactive runs, use:
-
-```bash
-ao init --refresh-agents
-```
-
-Default review models after refresh:
-- `claude-cli` -> `claude-opus-4-6`
-- `codex-cli` -> `gpt-5.4`
-- `openai` -> `gpt-5.4`
-- `anthropic` -> `claude-sonnet-4-6`
-
-To inspect the saved result later:
+Then inspect the result:
 
 ```bash
 ao job list
 ao job show <job-id>
 ```
 
-## What It Does
-
-Agent Orchestra runs LLM agents through a structured **iterative debate** protocol:
-
-1. **Architect** analyzes the target (code or plan)
-2. **Reviewer** challenges the analysis through a specific lens (security, testing, scope, etc.)
-3. **Architect** reviews each reviewer finding, explicitly acknowledges or disputes it, and discovers new issues
-4. **Auto-apply** patches the live file in place when enabled, but only for architect-acknowledged findings
-5. **Reviewer** re-reads the patched source, verifies the architect's response, finds more gaps
-6. Repeat until **no new findings** — debate converges naturally
-7. **Final check** compares the final artifact against the original baseline snapshot
-
-Every review produces **concrete, classified findings** — not vague prose. Each finding has an actionability level (`must_fix_now`, `follow_up_candidate`, `note_only`) and a confidence rating.
-
-## Quick Start
+If your workspace already has an older `.agent-orchestra/agents.yaml`, refresh it with:
 
 ```bash
-# 1. Install the CLI
-npm install -g @malayvuong/agent-orchestra
+ao init --refresh-agents
+```
 
-# 2. Initialize — auto-detects CLI tools, API keys, and project type
-ao init
+## What It Does
 
-# Output:
-# Providers detected:
-#   [x] claude CLI
-#   [x] codex CLI
-#   [ ] OpenAI API (OPENAI_API_KEY not set)
-# Generated:
-#   - .agent-orchestra/skills/...
-#   - .agent-orchestra/skillsets.builtin.yaml
-#   - .agent-orchestra/agents.yaml
-#   - AGENTS.md
+Agent Orchestra is built for review workflows where “give me feedback” is not enough.
 
-# 3. Run a review
-ao run --target ./src --superpower security-review
+Typical loop:
 
-# 4. Review a plan with iterative debate and auto-fix
+1. The `architect` analyzes the target file or folder.
+2. The `reviewer` challenges that analysis through a lens like planning or security.
+3. The `architect` reviews those findings and explicitly acknowledges or disputes them.
+4. If `--auto-apply` is enabled, only acknowledged findings are patched into the live file.
+5. The `reviewer` re-reads the updated file and continues the debate.
+6. The run stops when the debate converges or the round budget is exhausted.
+7. A final check compares the ending artifact against the original baseline.
+
+Important: `--auto-apply` is patch-based. It does not replace the whole file with model-generated content.
+
+## Most Common Commands
+
+Review a plan or spec:
+
+```bash
+ao run --target ./docs/plan.md --superpower plan-review --max-rounds 10
+```
+
+Review and patch the spec in place:
+
+```bash
 ao run --target ./docs/plan.md --superpower plan-review --max-rounds 10 --auto-apply
 ```
 
-## Providers
-
-Agent Orchestra supports **CLI tools** (no API key needed) and **API providers**:
-
-| Provider | Type | Auth | Default Model |
-|---|---|---|---|
-| `claude-cli` | Claude Code CLI | Already logged in | `claude-opus-4-6` |
-| `codex-cli` | OpenAI Codex CLI | Already logged in | `gpt-5.4` |
-| `openai` | OpenAI API | `OPENAI_API_KEY` | `gpt-5.4` |
-| `anthropic` | Anthropic API | `ANTHROPIC_API_KEY` | `claude-sonnet-4-6` |
-| `grok` | Grok API (xAI) | `XAI_API_KEY` | `grok-3` |
-| `deepseek` | Deepseek API | `DEEPSEEK_API_KEY` | `deepseek-chat` |
-
-**Default behavior:** `ao init` auto-detects what's available. CLI tools are preferred over API keys. Each agent (architect, reviewer) can use a different provider.
-
-**Review defaults:** when both CLIs are available, the generated config prefers `claude-cli` + `claude-opus-4-6` first, then `codex-cli` + `gpt-5.4`. API fallbacks default to `gpt-5.4` for OpenAI and `claude-sonnet-4-6` for Anthropic.
-
-### Per-agent provider configuration
-
-Configure in `.agent-orchestra/agents.yaml` (auto-generated by `init`):
-
-```yaml
-architect:
-  provider: codex-cli
-  model: gpt-5.4
-
-reviewer:
-  provider: claude-cli
-  model: claude-opus-4-6
-```
-
-`ao init` also bootstraps built-in review skills into `.agent-orchestra/skills/` and `.agent-orchestra/skillsets.builtin.yaml`, so built-in superpowers like `plan-review` work immediately without extra setup.
-
-Or override on the command line:
+Review a codebase for security issues:
 
 ```bash
-ao run --target ./src --superpower security-review \
-  --architect-provider codex-cli \
-  --reviewer-provider claude-cli
+ao run --target ./src --superpower security-review
 ```
 
-## Example Findings
-
-When you run `ao run --target examples/flawed-plan.md --superpower plan-review --max-rounds 8`:
-
-```
-Round 0: Architect analysis          → 14 findings
-Round 1: Reviewer challenge          → 11 findings
-Round 2: Architect acknowledge+apply → 4 new findings
-Round 3: Reviewer re-reads source    → 2 new findings
-Round 4: Architect acknowledge+apply → 3 new findings
-Round 5: Reviewer follow-up          → 0 findings (converged)
-──────────────────────────────────────────────────
-Total: 34 unique findings (20 critical)
-
-[!] Circular dependency between payments and seller onboarding (high)
-[!] Permission system required but "not planned" (high)
-[!] Payments scheduled before seller verification — wrong sequence (high)
-[!] Scope creep — "while we're at it, add ML pipeline" (high)
-[!] No data model defined — schema conflicts will emerge (high)
-[!] Payment provider not identified — integration research gap (high)
-[>] No rollback plan for payment infrastructure (medium)
-```
-
-## Superpowers
-
-A **superpower** is a one-command review preset — skills, agent config, and review lens bundled together.
-
-| Superpower | What it reviews | What it catches |
-|---|---|---|
-| `plan-review` | Plans, RFCs, roadmaps | Missing steps, circular deps, scope creep, vague tasks, timeline risks |
-| `security-review` | Source code | Injection, broken auth, XSS, SSRF, insecure deserialization |
-| `test-generation` | Source code | Missing test coverage, untested edge cases, boundary conditions |
-| `auto-fix-lint` | Source code | Lint violations, code quality issues (requires approval) |
-| `dependency-audit` | Package manifests | Known CVEs, outdated packages, license issues (requires approval) |
-
-## Installation
-
-```bash
-# Install globally
-npm install -g @malayvuong/agent-orchestra
-
-# Or, if you are developing Agent Orchestra itself, run from source
-git clone https://github.com/malayvuong/agent-orchestra.git
-cd agent-orchestra && pnpm install && pnpm build
-```
-
-Requires Node.js >= 20.
-
-`ao` is the short command. `agent-orchestra` still works if you prefer the full name.
-
-### Use This Checkout Directly
-
-If you are working on Agent Orchestra itself and want to run this checkout instead of the npm package:
-
-```bash
-pnpm install
-pnpm link:ao
-ao --help
-```
-
-That links the CLI from this checkout into your global bin path, so `ao` works from any directory while still running the code in this repo.
-The helper writes symlinks into your npm global bin so you avoid `pnpm` global store issues.
-
-To remove the local command later:
-
-```bash
-pnpm unlink:ao
-```
-
-## How It Works
-
-```
-ao run --target plan.md --superpower plan-review --max-rounds 10 --auto-apply
-  │
-  │  1. Auto-detect provider (claude-cli > codex-cli > API)
-  │  2. Resolve superpower → skills + agent config + lens
-  │  3. Read target files
-  │
-  │  Iterative Debate Protocol
-  │  ┌──────────────────────────────────────────────────┐
-  │  │  Round 0: Architect analysis                     │
-  │  │  Round 1: Reviewer challenge                     │
-  │  │  Round 2: Architect acknowledge + apply + rebut  │
-  │  │  Round 3: Reviewer re-reads source, follow-up    │
-  │  │  Round 4: Architect response                     │
-  │  │  Round 5: Reviewer → 0 new findings → CONVERGED  │
-  │  └──────────────────────────────────────────────────┘
-  │
-  │  4. Inline auto-apply: patch only acknowledged findings
-  │  5. Reviewer re-reads patched file, continue until converged
-  │  6. Synthesize + final-check against baseline
-  │
-  → Patched file + findings summary + final-check verdict
-```
-
-## CLI Commands
-
-### Core
-
-| Command | Description |
-|---|---|
-| `init` | Auto-detect providers, generate `agents.yaml` + `AGENTS.md` |
-| `run --target <path> --superpower <id>` | Run a multi-agent review |
-| `run ... --max-rounds <n>` | Max persisted protocol steps before convergence/apply/final_check (default: 10) |
-| `run ... --auto-apply` | Patch confirmed findings into the original file without full rewrite |
-| `run ... --architect-provider <name>` | Override architect's provider |
-| `run ... --reviewer-provider <name>` | Override reviewer's provider |
-| `superpowers list` | List available superpowers |
-| `superpowers show <id>` | Show superpower details |
-
-### Skills, Policy & Jobs
-
-| Command | Description |
-|---|---|
-| `skills list` | List loaded skills with trigger conditions |
-| `policy show` | Display active policy configuration |
-| `job list` | List completed review jobs |
-| `job show <id>` | Show job details and round history |
-
-### Integration
-
-| Command | Description |
-|---|---|
-| `serve --mcp` | Start as an MCP tool server for AI agent integration |
-
-## MCP Server (optional)
+Start the MCP server:
 
 ```bash
 ao serve --mcp
 ```
 
-Exposes tools like `review_target`, `review_plan`, `list_superpowers` to any MCP-compatible client (Claude Desktop, Cursor, etc.). See [docs/integrations/mcp.md](docs/integrations/mcp.md).
+## Superpowers
 
-## Built-in Skills
+A superpower is a ready-to-use review preset: lens + skills + agent setup.
 
-| Skill | Triggers on | Checks for |
-|---|---|---|
-| `security-review` | security lens | OWASP Top 10: injection, auth, XSS, SSRF, dependencies |
-| `test-conventions` | testing lens | Naming, AAA structure, boundaries, mocking, coverage |
-| `code-quality` | always | Naming, function length, error handling, DRY |
-| `perf-review` | performance lens | N+1 queries, allocations, caching, async patterns |
-| `migration-guide` | keywords: migrate, upgrade | Breaking changes, rollback strategy, incremental migration |
-| `sequencing-check` | plan-review | Ordering problems, prerequisite violations |
-| `dependency-check` | plan-review | Hidden dependencies, circular dependencies |
-| `scope-discipline` | plan-review | Over-scoping, premature complexity, missing MVP cuts |
-| `implementation-readiness` | plan-review | Actionability, exit criteria, specification gaps |
-| `risk-check` | plan-review | Assumptions, mitigations, rollout risks |
+| Superpower | Best for |
+|---|---|
+| `plan-review` | specs, plans, RFCs, rollouts |
+| `security-review` | source code, auth, input validation, OWASP-style review |
+| `test-generation` | finding missing tests and edge cases |
+| `auto-fix-lint` | lint-focused cleanup |
+| `dependency-audit` | package manifests and dependency risk |
 
-## Development
+## Provider Defaults
+
+`ao init` auto-detects what is available and prefers CLI tools over API keys.
+
+Default model matrix:
+
+| Provider | Default model |
+|---|---|
+| `claude-cli` | `claude-opus-4-6` |
+| `codex-cli` | `gpt-5.4` |
+| `openai` | `gpt-5.4` |
+| `anthropic` | `claude-sonnet-4-6` |
+
+Per-agent config is stored in `.agent-orchestra/agents.yaml`.
+
+Example:
+
+```yaml
+architect:
+  provider: claude-cli
+  model: claude-opus-4-6
+
+reviewer:
+  provider: codex-cli
+  model: gpt-5.4
+```
+
+You can also override providers on the command line:
 
 ```bash
-pnpm install && pnpm build    # Build all packages
-pnpm dev -- run --help        # Run CLI in dev mode
-pnpm test                     # Run all tests (870+)
+ao run --target ./docs/spec.md --superpower plan-review \
+  --architect-provider claude-cli \
+  --reviewer-provider codex-cli
+```
+
+## Why Use It
+
+Agent Orchestra is optimized for execution-readiness review.
+
+It is good at catching:
+- wrong sequencing in implementation plans
+- hidden dependencies and circular dependencies
+- vague or non-actionable tasks
+- scope creep and missing MVP cuts
+- security and validation gaps in code
+- disagreements that should be resolved before work starts
+
+## Output and Audit Trail
+
+Each run produces:
+- persisted rounds
+- classified findings
+- apply summaries
+- final-check summaries
+- a baseline-aware job record you can inspect later
+
+Useful commands:
+
+```bash
+ao job list
+ao job show <job-id>
+```
+
+## Use This Repo Directly
+
+If you are developing Agent Orchestra itself and want to run this checkout instead of the npm package:
+
+```bash
+git clone https://github.com/malayvuong/agent-orchestra.git
+cd agent-orchestra
+pnpm install
+pnpm link:ao
+ao --help
+```
+
+Remove the local link later with:
+
+```bash
+pnpm unlink:ao
 ```
 
 ## Documentation
@@ -290,9 +178,13 @@ pnpm test                     # Run all tests (870+)
 - [Superpowers Overview](docs/superpowers/overview.md)
 - [Built-in Superpowers](docs/superpowers/builtin-superpowers.md)
 - [Plan Review](docs/superpowers/plan-review.md)
-- [MCP Server Integration](docs/integrations/mcp.md)
+- [MCP Integration](docs/integrations/mcp.md)
 - [Skill Format Reference](docs/skills/skill-format.md)
-- [Architecture Decisions](docs/decision-log.md)
+
+## Repository
+
+- GitHub: <https://github.com/malayvuong/agent-orchestra>
+- Issues: <https://github.com/malayvuong/agent-orchestra/issues>
 
 ## License
 
