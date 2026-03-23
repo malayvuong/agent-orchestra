@@ -17,12 +17,12 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/nicemvp/agent-orchestra.git",
+    "url": "https://github.com/malayvuong/agent-orchestra.git",
     "directory": "apps/cli"
   },
-  "homepage": "https://github.com/nicemvp/agent-orchestra#readme",
+  "homepage": "https://github.com/malayvuong/agent-orchestra#readme",
   "bugs": {
-    "url": "https://github.com/nicemvp/agent-orchestra/issues"
+    "url": "https://github.com/malayvuong/agent-orchestra/issues"
   },
   "publishConfig": {
     "access": "public"

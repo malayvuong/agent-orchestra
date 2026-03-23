@@ -170,7 +170,7 @@ A **superpower** is a one-command review preset — skills, agent config, and re
 npm install -g @malayvuong/agent-orchestra
 
 # Or, if you are developing Agent Orchestra itself, run from source
-git clone https://github.com/nicemvp/agent-orchestra.git
+git clone https://github.com/malayvuong/agent-orchestra.git
 cd agent-orchestra && pnpm install && pnpm build
 ```
 

@@ -10,7 +10,7 @@ Thank you for your interest in contributing! This guide will help you get starte
 ## Setup
 
 ```bash
-git clone https://github.com/nicemvp/agent-orchestra.git
+git clone https://github.com/malayvuong/agent-orchestra.git
 cd agent-orchestra
 pnpm install
 pnpm build

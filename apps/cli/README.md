@@ -54,5 +54,5 @@ ao init --refresh-agents
 
 ## Docs
 
-- Repository: <https://github.com/nicemvp/agent-orchestra>
-- Full usage guide: <https://github.com/nicemvp/agent-orchestra#readme>
+- Repository: <https://github.com/malayvuong/agent-orchestra>
+- Full usage guide: <https://github.com/malayvuong/agent-orchestra#readme>

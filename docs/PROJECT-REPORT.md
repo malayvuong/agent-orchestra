@@ -2,7 +2,7 @@
 
 **Generated:** 2026-03-22
 **Scan tool:** Automated project analysis
-**Repository:** `nicemvp/agent-orchestra`
+**Repository:** `malayvuong/agent-orchestra`
 
 ---
 

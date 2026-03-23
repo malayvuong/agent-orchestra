@@ -13,7 +13,7 @@ export function generateAgentsMd(profile: ProjectProfile): string {
 
   return `# Agent Instructions
 
-This repository uses [Agent Orchestra](https://github.com/nicemvp/agent-orchestra) for structured multi-agent review.
+This repository uses [Agent Orchestra](https://github.com/malayvuong/agent-orchestra) for structured multi-agent review.
 
 ## When to use Agent Orchestra
 
@@ -180,7 +180,7 @@ export function generateAgentsSection(profile: ProjectProfile): string {
   return `
 ## Agent Orchestra
 
-This repository uses [Agent Orchestra](https://github.com/nicemvp/agent-orchestra) for structured multi-agent review.
+This repository uses [Agent Orchestra](https://github.com/malayvuong/agent-orchestra) for structured multi-agent review.
 
 ### Recommended commands
 

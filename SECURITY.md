@@ -17,7 +17,7 @@ please report it responsibly through GitHub Private Security Advisories.
 
 ### How to Report
 
-1. Go to **[agent-orchestra](https://github.com/nicemvp/agent-orchestra)** > **Security** > **Advisories** > **New draft advisory**.
+1. Go to **[agent-orchestra](https://github.com/malayvuong/agent-orchestra)** > **Security** > **Advisories** > **New draft advisory**.
 2. Provide the following information:
    - A clear description of the vulnerability.
    - Step-by-step reproduction instructions.
@@ -100,4 +100,4 @@ The following components are in scope for this security policy:
 
 ## Security Advisories
 
-Past security advisories are published on the [GitHub Security Advisories](https://github.com/nicemvp/agent-orchestra/security/advisories) page.
+Past security advisories are published on the [GitHub Security Advisories](https://github.com/malayvuong/agent-orchestra/security/advisories) page.
