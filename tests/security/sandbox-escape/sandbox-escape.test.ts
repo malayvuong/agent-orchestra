@@ -194,7 +194,9 @@ describe.skipIf(!DOCKER_AVAILABLE)('Sandbox Escape Prevention (integration)', ()
 
       // Container should be OOM-killed (exit code 137) or killed by timeout
       expect(result.killed).toBe(true)
-    })
+    }, // CI runners can take longer than Vitest's default 5s before Docker reports
+    // the container as OOM-killed or the sandbox timeout path completes.
+    30_000)
 
     it('plugin cannot escalate privileges', async () => {
       const sandbox = new SandboxRunner(defaultConfig, logger)
