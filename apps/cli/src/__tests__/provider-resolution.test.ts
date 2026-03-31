@@ -111,7 +111,7 @@ describe('resolveProviderPlans', () => {
         modelOrCommand: agent.modelOrCommand,
       })),
     ).toEqual([
-      { role: 'architect', providerKey: 'claude-cli', modelOrCommand: 'claude-opus-4-6' },
+      { role: 'architect', providerKey: 'claude-cli', modelOrCommand: 'claude-opus-4-6[1m]' },
       { role: 'reviewer', providerKey: 'codex-cli', modelOrCommand: 'gpt-5.4' },
     ])
   })

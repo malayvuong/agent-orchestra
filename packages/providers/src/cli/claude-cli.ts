@@ -8,12 +8,32 @@ import { ProviderError } from '../types.js'
 const DEFAULT_TIMEOUT_MS = 900_000
 
 /**
+ * Approximate character limits for prompts sent to Claude CLI.
+ *
+ * Claude CLI adds its own system prompt (~30K tokens of tool definitions and
+ * instructions) on top of the user-provided content.  The available context
+ * depends on the model suffix:
+ *
+ *   - `claude-opus-4-6`      → 200K tokens (~695K chars empirically)
+ *   - `claude-opus-4-6[1m]`  → 1M tokens  (~3.5M chars empirically)
+ *
+ * We apply conservative limits with headroom for the internal system prompt.
+ */
+const MAX_PROMPT_CHARS_200K = 680_000
+const MAX_PROMPT_CHARS_1M = 3_400_000
+
+/** Returns the prompt char limit based on model ID (1M models get a larger budget). */
+function maxPromptCharsForModel(model: string): number {
+  return model.includes('[1m]') ? MAX_PROMPT_CHARS_1M : MAX_PROMPT_CHARS_200K
+}
+
+/**
  * Configuration options for the Claude CLI provider.
  */
 export type ClaudeCliProviderConfig = {
   /** Path to the claude binary; defaults to 'claude' (from PATH) */
   command?: string
-  /** Default model; defaults to 'claude-opus-4-6' */
+  /** Default model; defaults to 'claude-opus-4-6[1m]' (1M context) */
   defaultModel?: string
 }
 
@@ -39,12 +59,36 @@ export class ClaudeCliProvider implements AgentProvider {
     const timeoutMs = input.timeoutMs ?? DEFAULT_TIMEOUT_MS
     const startTime = Date.now()
 
-    // Combine system + user prompts for single-turn CLI invocation
-    const combinedPrompt = `${input.systemPrompt}\n\n---\n\n${input.userPrompt}`
+    // Separate system prompt from user prompt.  Passing the system prompt via
+    // `--system-prompt` replaces Claude CLI's default (tool-heavy) system prompt,
+    // freeing context window space for the actual content.
+    const userPrompt = input.userPrompt
+
+    // Pre-flight size check — fail fast with a clear message instead of an
+    // opaque "Prompt is too long" from the CLI subprocess.
+    const estimatedChars = (input.systemPrompt?.length ?? 0) + userPrompt.length
+    const limit = maxPromptCharsForModel(model)
+    if (estimatedChars > limit) {
+      const hint = !model.includes('[1m]')
+        ? ` Try using the 1M context model (e.g. claude-opus-4-6[1m]).`
+        : ''
+      throw new ProviderError(
+        `Prompt too large for Claude CLI (${Math.round(estimatedChars / 1000)}K chars, limit ~${Math.round(limit / 1000)}K).${hint} ` +
+          `Reduce target content or split across multiple reviews.`,
+        'invalid_response',
+      )
+    }
 
     // Use stdin for prompt delivery to avoid OS argument length limits (~256KB on macOS).
     // Claude CLI reads from stdin when `-p` is given without an argument value.
     const args = ['-p', '--model', model, '--output-format', 'text']
+
+    // Pass agent-orchestra's system prompt via --system-prompt so it replaces
+    // Claude CLI's default tool-heavy system prompt, maximizing available
+    // context for the actual review content.
+    if (input.systemPrompt) {
+      args.push('--system-prompt', input.systemPrompt)
+    }
 
     if (input.maxTokens) {
       args.push('--max-tokens', String(input.maxTokens))
@@ -84,8 +128,8 @@ export class ClaudeCliProvider implements AgentProvider {
         )
       })
 
-      // Write prompt to stdin
-      child.stdin.end(combinedPrompt)
+      // Write user prompt to stdin (system prompt sent via --system-prompt flag)
+      child.stdin.end(userPrompt)
 
       let stdout = ''
       let stderr = ''
@@ -132,16 +176,35 @@ export class ClaudeCliProvider implements AgentProvider {
         const latencyMs = Date.now() - startTime
 
         if (code !== 0) {
+          // Use combined output for error detection — Claude CLI may write
+          // error messages to stdout, stderr, or both depending on the error.
+          const combined = `${stderr}\n${stdout}`
+
           // Check for common error patterns
           if (
-            stderr.includes('authentication') ||
-            stderr.includes('login') ||
-            stderr.includes('not logged in')
+            combined.includes('authentication') ||
+            combined.includes('login') ||
+            combined.includes('not logged in')
           ) {
             rejectOnce(
               new ProviderError(
                 `Claude CLI authentication failed. Run 'claude login' first. stderr: ${stderr.slice(0, 300)}`,
                 'auth_error',
+              ),
+            )
+            return
+          }
+
+          if (
+            combined.includes('Prompt is too long') ||
+            combined.includes('prompt is too long') ||
+            combined.includes('too many tokens')
+          ) {
+            rejectOnce(
+              new ProviderError(
+                `Prompt too large for Claude CLI context window. ` +
+                  `Reduce target content or split across multiple reviews.`,
+                'invalid_response',
               ),
             )
             return
@@ -159,9 +222,11 @@ export class ClaudeCliProvider implements AgentProvider {
             return
           }
 
+          // Include stdout in error when stderr is empty — some errors only appear on stdout
+          const errorDetail = stderr.trim() || stdout.trim()
           rejectOnce(
             new ProviderError(
-              `Claude CLI exited with code ${code}. stderr: ${stderr.slice(0, 500)}`,
+              `Claude CLI exited with code ${code}. ${errorDetail ? `Output: ${errorDetail.slice(0, 500)}` : '(no output)'}`,
               'server_error',
               code,
               true,

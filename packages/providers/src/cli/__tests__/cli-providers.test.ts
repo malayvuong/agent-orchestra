@@ -30,6 +30,39 @@ describe('ClaudeCliProvider', () => {
     expect(typeof provider.run).toBe('function')
   })
 
+  it('throws ProviderError when prompt exceeds 200K-model size limit', async () => {
+    const provider = new ClaudeCliProvider()
+    const oversized = 'x'.repeat(700_000)
+
+    try {
+      // Use the 200K model (no [1m] suffix) to hit the lower limit
+      await provider.run({
+        systemPrompt: 'system',
+        userPrompt: oversized,
+        model: 'claude-opus-4-6',
+      })
+      expect.unreachable('should have thrown')
+    } catch (err) {
+      expect(err).toBeInstanceOf(ProviderError)
+      expect((err as ProviderError).code).toBe('invalid_response')
+      expect((err as ProviderError).message).toContain('too large')
+      expect((err as ProviderError).message).toContain('[1m]')
+    }
+  })
+
+  it('does not reject prompt under 1M-model limit', async () => {
+    // Use echo to avoid actually calling Claude API — just verify no pre-flight rejection
+    const provider = new ClaudeCliProvider({ command: 'echo' })
+    const largePrompt = 'x'.repeat(700_000)
+
+    const result = await provider.run({
+      systemPrompt: 'system',
+      userPrompt: largePrompt,
+      model: 'claude-opus-4-6[1m]',
+    })
+    expect(result.exitCode).toBe(0)
+  })
+
   it('throws ProviderError with ENOENT when command not found', async () => {
     const provider = new ClaudeCliProvider({
       command: 'nonexistent-claude-binary-xyz',
@@ -210,7 +243,9 @@ describe('ClaudeCliProvider — echo integration', () => {
       await chmod(scriptPath, 0o755)
 
       const provider = new ClaudeCliProvider({ command: scriptPath })
-      const largePrompt = 'x'.repeat(2_000_000)
+      // Use a prompt large enough to trigger EPIPE but within the pre-flight
+      // size limit (680K chars).  300K + 300K = 600K total.
+      const largePrompt = 'x'.repeat(300_000)
       const result = await provider.run({
         systemPrompt: largePrompt,
         userPrompt: largePrompt,
