@@ -83,12 +83,26 @@ export class ClaudeCliProvider implements AgentProvider {
     // Claude CLI reads from stdin when `-p` is given without an argument value.
     const args = ['-p', '--model', model, '--output-format', 'text']
 
+    // macOS ARG_MAX is ~262144 bytes.  Keep a safety margin for env vars and
+    // other arguments already on the command line.
+    const SYSTEM_PROMPT_CLI_LIMIT = 200_000
+
     // Pass agent-orchestra's system prompt via --system-prompt so it replaces
     // Claude CLI's default tool-heavy system prompt, maximizing available
     // context for the actual review content.
-    if (input.systemPrompt) {
+    //
+    // When the system prompt exceeds the OS argument-length limit we fold it
+    // into the stdin payload instead — slightly less optimal (Claude CLI keeps
+    // its default system prompt) but avoids an E2BIG spawn failure.
+    const systemPromptViaStdin =
+      input.systemPrompt && input.systemPrompt.length > SYSTEM_PROMPT_CLI_LIMIT
+    if (input.systemPrompt && !systemPromptViaStdin) {
       args.push('--system-prompt', input.systemPrompt)
     }
+
+    const stdinContent = systemPromptViaStdin
+      ? `<system-instructions>\n${input.systemPrompt}\n</system-instructions>\n\n${userPrompt}`
+      : userPrompt
 
     if (input.maxTokens) {
       args.push('--max-tokens', String(input.maxTokens))
@@ -128,8 +142,8 @@ export class ClaudeCliProvider implements AgentProvider {
         )
       })
 
-      // Write user prompt to stdin (system prompt sent via --system-prompt flag)
-      child.stdin.end(userPrompt)
+      // Write prompt content to stdin (system prompt may be folded in for large prompts)
+      child.stdin.end(stdinContent)
 
       let stdout = ''
       let stderr = ''
