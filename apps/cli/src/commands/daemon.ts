@@ -251,12 +251,12 @@ async function daemonStatus(opts: { path: string; port: string }): Promise<void>
     // Get server info
     try {
       const resp = await fetch(`http://127.0.0.1:${port}/health`)
-      const data = await resp.json()
+      const data = (await resp.json()) as { version?: string; uptime?: number }
       console.log(`Status: running`)
       console.log(`PID: ${pid}`)
       console.log(`Port: ${port}`)
-      console.log(`Version: ${data.version}`)
-      console.log(`Uptime: ${Math.floor(data.uptime)}s`)
+      console.log(`Version: ${data.version ?? 'unknown'}`)
+      console.log(`Uptime: ${Math.floor(data.uptime ?? 0)}s`)
       console.log(`Dashboard: http://localhost:${port}/`)
     } catch {
       console.log(`Status: running (PID ${pid}, port ${port})`)
