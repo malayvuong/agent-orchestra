@@ -296,3 +296,14 @@ All runtime data lives in `.agent-orchestra/` at the workspace root:
 5. **Observable** — every run, tool call, and guard violation is persisted and inspectable.
 6. **Deny-by-default** — tools are blocked unless explicitly allowed by policy.
 7. **Trust-aware** — transcript entries carry trust levels to distinguish user input from system data.
+
+---
+
+## Further reading
+
+- [Setup Guide](guides/setup.md) — get started with the interactive wizard
+- [Automation Guide](guides/automation.md) — create and run workflow jobs
+- [Dashboard & Daemon](guides/dashboard.md) — web UI and REST API reference
+- [Project Manager](guides/project-manager.md) — manage multiple workspaces
+- [CLI Reference](guides/cli-reference.md) — all commands in one place
+- [Implementation Plan](implementation-plan-v2.md) — detailed phase breakdown of v2 runtime

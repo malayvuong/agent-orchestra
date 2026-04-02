@@ -1,63 +1,362 @@
-import { createServer, type ServerResponse } from 'node:http'
-import { readdir, readFile } from 'node:fs/promises'
-import { join } from 'node:path'
-import { loadSuperpowerCatalog } from '@malayvuong/agent-orchestra-core'
+import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
+import { execSync } from 'node:child_process'
+import { join, dirname } from 'node:path'
+import { unlink } from 'node:fs/promises'
+import {
+  FileJobStore,
+  FileRoundStore,
+  FileRunStore,
+  FileTaskStore,
+  FileSessionStore,
+  FileTranscriptStore,
+  FileAutomationStore,
+  AutomationRunner,
+  loadSuperpowerCatalog,
+  listProjects,
+  registerProject,
+  unregisterProject,
+  touchProject,
+} from '@malayvuong/agent-orchestra-core'
+import type { StepExecutor, WorkflowStep } from '@malayvuong/agent-orchestra-core'
 import { AGENT_ORCHESTRA_VERSION } from '@malayvuong/agent-orchestra-shared'
+import { serveDashboard } from './dashboard.js'
 
 const PORT = Number(process.env.PORT ?? 3100)
 const STORAGE_DIR = process.env.STORAGE_DIR ?? join(process.cwd(), '.agent-orchestra')
 
+// ─── Stores ────────────────────────────────────────────────────────
+
+const jobStore = new FileJobStore(STORAGE_DIR)
+const roundStore = new FileRoundStore(STORAGE_DIR)
+const runStore = new FileRunStore(STORAGE_DIR)
+const taskStore = new FileTaskStore(STORAGE_DIR)
+const sessionStore = new FileSessionStore(STORAGE_DIR)
+const transcriptStore = new FileTranscriptStore(STORAGE_DIR)
+const automationStore = new FileAutomationStore(STORAGE_DIR)
+
+// ─── Helpers ───────────────────────────────────────────────────────
+
+function json(res: ServerResponse, data: unknown, status = 200) {
+  res.writeHead(status, { 'Content-Type': 'application/json' })
+  res.end(JSON.stringify(data, null, 2))
+}
+
+function notFound(res: ServerResponse) {
+  json(res, { error: 'Not found' }, 404)
+}
+
+async function readBody(req: IncomingMessage): Promise<string> {
+  const chunks: Buffer[] = []
+  for await (const chunk of req) chunks.push(chunk as Buffer)
+  return Buffer.concat(chunks).toString('utf-8')
+}
+
+// ─── Router ────────────────────────────────────────────────────────
+
 const server = createServer(async (req, res) => {
   const url = new URL(req.url ?? '/', `http://localhost:${PORT}`)
+  const method = req.method ?? 'GET'
+  const path = url.pathname
 
-  // CORS headers for dashboard
+  // CORS
   res.setHeader('Access-Control-Allow-Origin', '*')
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PATCH, DELETE, OPTIONS')
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
-
-  if (req.method === 'OPTIONS') {
+  if (method === 'OPTIONS') {
     res.writeHead(204)
     res.end()
     return
   }
 
   try {
-    if (url.pathname === '/health') {
-      json(res, { status: 'ok', version: AGENT_ORCHESTRA_VERSION, uptime: process.uptime() })
-      return
+    // ── Health & status ──────────────────────────────────────
+    if (path === '/health') {
+      return json(res, { status: 'ok', version: AGENT_ORCHESTRA_VERSION, uptime: process.uptime() })
     }
-
-    if (url.pathname === '/api/status') {
-      const jobCount = await countJobs()
-      json(res, {
+    if (path === '/api/status') {
+      const jobs = await jobStore.list()
+      return json(res, {
         version: AGENT_ORCHESTRA_VERSION,
         storage: STORAGE_DIR,
-        jobs: jobCount,
+        counts: { jobs: jobs.length },
         node: process.version,
       })
-      return
     }
 
-    if (url.pathname === '/api/jobs' && req.method === 'GET') {
-      const jobs = await listJobs()
-      json(res, { jobs })
-      return
+    // ── Jobs (review) ────────────────────────────────────────
+    if (path === '/api/jobs' && method === 'GET') {
+      const jobs = await jobStore.list()
+      const summaries = jobs.map((j) => ({
+        id: j.id,
+        title: j.title,
+        status: j.status,
+        protocol: j.protocol,
+        mode: j.mode,
+        createdAt: j.createdAt,
+      }))
+      summaries.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      return json(res, { jobs: summaries })
+    }
+    if (path.match(/^\/api\/jobs\/[^/]+$/) && method === 'GET') {
+      const jobId = path.split('/')[3]
+      const job = await jobStore.load(jobId)
+      if (!job) return notFound(res)
+      const rounds = await roundStore.listByJob(jobId)
+      return json(res, { job, rounds })
     }
 
-    if (url.pathname.startsWith('/api/jobs/') && req.method === 'GET') {
-      const jobId = url.pathname.split('/')[3]
-      const job = await loadJob(jobId)
-      if (job) {
-        json(res, job)
-      } else {
-        res.writeHead(404)
-        json(res, { error: 'Job not found' })
+    // ── Runs ─────────────────────────────────────────────────
+    if (path === '/api/runs' && method === 'GET') {
+      const sessionId = url.searchParams.get('sessionId')
+      const taskId = url.searchParams.get('taskId')
+      let runs
+      if (sessionId) runs = await runStore.listBySession(sessionId)
+      else if (taskId) runs = await runStore.listByTask(taskId)
+      else runs = await runStore.listBySession('__scan_all__').catch(() => [])
+      // Fallback: scan all runs
+      if (runs.length === 0 && !sessionId && !taskId) {
+        runs = await scanAllRuns()
       }
-      return
+      runs.sort((a, b) => b.startedAt - a.startedAt)
+      return json(res, { runs })
+    }
+    if (path.match(/^\/api\/runs\/[^/]+$/) && method === 'GET') {
+      const runId = path.split('/')[3]
+      const run = await runStore.load(runId)
+      if (!run) return notFound(res)
+      return json(res, { run })
+    }
+    if (path.match(/^\/api\/runs\/[^/]+$/) && method === 'PATCH') {
+      const runId = path.split('/')[3]
+      const run = await runStore.load(runId)
+      if (!run) return notFound(res)
+      const body = JSON.parse(await readBody(req))
+      if (body.status !== 'cancelled') {
+        return json(res, { error: 'Only status "cancelled" is allowed' }, 400)
+      }
+      if (run.status !== 'running') {
+        return json(res, { error: 'Can only cancel a running run' }, 400)
+      }
+      const updated = await runStore.update(runId, { status: 'cancelled', endedAt: Date.now() })
+      return json(res, { run: updated })
     }
 
-    // Superpowers endpoints
-    if (url.pathname === '/api/superpowers' && req.method === 'GET') {
+    // ── Tasks ────────────────────────────────────────────────
+    if (path === '/api/tasks' && method === 'GET') {
+      const status = url.searchParams.get('status')
+      const sessionId = url.searchParams.get('sessionId')
+      let tasks
+      if (status)
+        tasks = await taskStore.listByStatus(
+          status as 'queued' | 'running' | 'blocked' | 'waiting' | 'done' | 'failed',
+        )
+      else if (sessionId) tasks = await taskStore.listBySession(sessionId)
+      else tasks = await scanAllTasks()
+      tasks.sort((a, b) => b.updatedAt - a.updatedAt)
+      return json(res, { tasks })
+    }
+    if (path.match(/^\/api\/tasks\/[^/]+$/) && method === 'GET') {
+      const taskId = path.split('/')[3]
+      const task = await taskStore.load(taskId)
+      if (!task) return notFound(res)
+      return json(res, { task })
+    }
+    if (path === '/api/tasks' && method === 'POST') {
+      const body = JSON.parse(await readBody(req))
+      if (!body.title || !body.objective) {
+        return json(res, { error: 'title and objective are required' }, 400)
+      }
+      const task = await taskStore.create({
+        title: body.title,
+        objective: body.objective,
+        executionRequired: body.executionRequired ?? false,
+        origin: body.origin ?? 'user',
+        sessionId: body.sessionId,
+        status: 'queued',
+      })
+      return json(res, { task }, 201)
+    }
+    if (path.match(/^\/api\/tasks\/[^/]+$/) && method === 'PATCH') {
+      const taskId = path.split('/')[3]
+      const task = await taskStore.load(taskId)
+      if (!task) return notFound(res)
+      const body = JSON.parse(await readBody(req))
+      const allowedFields = ['status', 'blocker', 'resumeHint', 'lastEvidence'] as const
+      const patch: Record<string, unknown> = {}
+      for (const field of allowedFields) {
+        if (body[field] !== undefined) patch[field] = body[field]
+      }
+      const updated = await taskStore.update(taskId, patch)
+      return json(res, { task: updated })
+    }
+    if (path.match(/^\/api\/tasks\/[^/]+$/) && method === 'DELETE') {
+      const taskId = path.split('/')[3]
+      const task = await taskStore.load(taskId)
+      if (!task) return notFound(res)
+      if (task.status !== 'done' && task.status !== 'failed') {
+        return json(res, { error: 'Can only delete tasks with status "done" or "failed"' }, 400)
+      }
+      await unlink(join(STORAGE_DIR, 'tasks', `${taskId}.json`))
+      return json(res, { ok: true })
+    }
+
+    // ── Sessions ─────────────────────────────────────────────
+    if (path === '/api/sessions' && method === 'GET') {
+      const sessions = await sessionStore.list()
+      sessions.sort((a, b) => b.lastActivityAt - a.lastActivityAt)
+      return json(res, { sessions })
+    }
+    if (path.match(/^\/api\/sessions\/[^/]+$/) && method === 'GET') {
+      const sessionId = path.split('/')[3]
+      const session = await sessionStore.load(sessionId)
+      if (!session) return notFound(res)
+      return json(res, { session })
+    }
+    if (path.match(/^\/api\/sessions\/[^/]+\/transcript$/) && method === 'GET') {
+      const sessionId = path.split('/')[3]
+      const limit = url.searchParams.get('limit')
+      const entries = await transcriptStore.loadBySession(sessionId, {
+        limit: limit ? parseInt(limit) : undefined,
+      })
+      return json(res, { entries })
+    }
+    if (path.match(/^\/api\/sessions\/[^/]+$/) && method === 'DELETE') {
+      const sessionId = path.split('/')[3]
+      const session = await sessionStore.load(sessionId)
+      if (!session) return notFound(res)
+      await unlink(join(STORAGE_DIR, 'sessions', `${sessionId}.json`))
+      return json(res, { ok: true })
+    }
+
+    // ── Automation ───────────────────────────────────────────
+    if (path === '/api/automation' && method === 'GET') {
+      const jobs = await automationStore.list()
+      return json(res, { jobs })
+    }
+    if (path.match(/^\/api\/automation\/[^/]+$/) && method === 'GET') {
+      const jobId = path.split('/')[3]
+      const job = await automationStore.load(jobId)
+      if (!job) return notFound(res)
+      return json(res, { job })
+    }
+    if (path.match(/^\/api\/automation\/[^/]+$/) && method === 'PATCH') {
+      const jobId = path.split('/')[3]
+      const job = await automationStore.load(jobId)
+      if (!job) return notFound(res)
+      const body = JSON.parse(await readBody(req))
+      if (typeof body.enabled === 'boolean') job.enabled = body.enabled
+      if (typeof body.schedule === 'string') job.schedule = body.schedule
+      await automationStore.save(job)
+      return json(res, { job })
+    }
+    if (path.match(/^\/api\/automation\/[^/]+\/logs$/) && method === 'GET') {
+      const jobId = path.split('/')[3]
+      const runs = await runStore.listBySession(`automation-${jobId}`)
+      runs.sort((a, b) => b.startedAt - a.startedAt)
+      const limit = parseInt(url.searchParams.get('limit') ?? '20')
+      return json(res, { runs: runs.slice(0, limit) })
+    }
+    if (path === '/api/automation' && method === 'POST') {
+      const body = JSON.parse(await readBody(req))
+      if (!body.id || !body.name || !body.workflow) {
+        return json(res, { error: 'id, name, and workflow are required' }, 400)
+      }
+      await automationStore.save(body)
+      return json(res, { job: body }, 201)
+    }
+    if (path.match(/^\/api\/automation\/[^/]+\/run$/) && method === 'POST') {
+      const jobId = path.split('/')[3]
+      const job = await automationStore.load(jobId)
+      if (!job) return notFound(res)
+
+      const scriptExecutor: StepExecutor = {
+        async execute(step: WorkflowStep, options: { timeout?: number }) {
+          const command = step.config.command as string
+          const timeout = options.timeout ?? step.timeoutMs ?? 30_000
+          const cwd = dirname(STORAGE_DIR)
+          const output = execSync(command, {
+            cwd,
+            timeout,
+            encoding: 'utf-8',
+            stdio: ['pipe', 'pipe', 'pipe'],
+          })
+          return { summary: output.slice(0, 2000) }
+        },
+      }
+
+      const executors = new Map<string, StepExecutor>()
+      executors.set('script', scriptExecutor)
+
+      const runner = new AutomationRunner(runStore, executors)
+      const result = await runner.execute(
+        {
+          source: 'system',
+          sessionId: `automation-${jobId}`,
+          actorId: 'server',
+          trustedMeta: { automationJob: job },
+          requestedMode: 'automation',
+        },
+        {
+          sessionId: `automation-${jobId}`,
+          sessionType: 'cron',
+          owner: 'server',
+          createdAt: Date.now(),
+          lastActivityAt: Date.now(),
+        },
+      )
+
+      job.lastRunAt = Date.now()
+      job.lastRunStatus = result.error ? 'failed' : 'ok'
+      await automationStore.save(job)
+
+      return json(res, { result })
+    }
+    if (path.match(/^\/api\/automation\/[^/]+$/) && method === 'DELETE') {
+      const jobId = path.split('/')[3]
+      const job = await automationStore.load(jobId)
+      if (!job) return notFound(res)
+      await automationStore.delete(jobId)
+      return json(res, { ok: true })
+    }
+
+    // ── Projects (central registry) ────────────────────────
+    if (path === '/api/projects' && method === 'GET') {
+      const projects = await listProjects()
+      return json(res, { projects })
+    }
+    if (path === '/api/projects' && method === 'POST') {
+      const body = JSON.parse(await readBody(req))
+      if (!body.path) {
+        return json(res, { error: 'path is required' }, 400)
+      }
+      const project = await registerProject(body.path, {
+        name: body.name,
+        kind: body.kind,
+        daemonPort: body.daemonPort,
+        tags: body.tags,
+      })
+      return json(res, { project }, 201)
+    }
+    if (path === '/api/projects' && method === 'DELETE') {
+      const body = JSON.parse(await readBody(req))
+      if (!body.path) {
+        return json(res, { error: 'path is required' }, 400)
+      }
+      const removed = await unregisterProject(body.path)
+      if (!removed) return notFound(res)
+      return json(res, { ok: true })
+    }
+    if (path === '/api/projects' && method === 'PATCH') {
+      const body = JSON.parse(await readBody(req))
+      if (!body.path) {
+        return json(res, { error: 'path is required' }, 400)
+      }
+      await touchProject(body.path)
+      return json(res, { ok: true })
+    }
+
+    // ── Superpowers ──────────────────────────────────────────
+    if (path === '/api/superpowers' && method === 'GET') {
       const catalog = loadSuperpowerCatalog()
       const superpowers = catalog.list().map((sp) => ({
         id: sp.id,
@@ -66,116 +365,74 @@ const server = createServer(async (req, res) => {
         maturity: sp.maturity,
         description: sp.description,
       }))
-      json(res, { superpowers })
-      return
+      return json(res, { superpowers })
     }
 
-    if (url.pathname.startsWith('/api/superpowers/') && req.method === 'GET') {
-      const superpowerId = url.pathname.split('/')[3]
-      const catalog = loadSuperpowerCatalog()
-      if (!catalog.has(superpowerId)) {
-        res.writeHead(404)
-        json(res, { error: 'Superpower not found' })
-        return
-      }
-      const sp = catalog.get(superpowerId)!
-      json(res, sp)
-      return
+    // ── Dashboard ────────────────────────────────────────────
+    if (path === '/' || path === '/dashboard' || path.startsWith('/dashboard/')) {
+      return serveDashboard(res)
     }
 
-    // Default: serve a simple status page
-    if (url.pathname === '/') {
-      res.writeHead(200, { 'Content-Type': 'text/html' })
-      res.end(`<!DOCTYPE html>
-<html>
-<head><title>Agent Orchestra</title><meta charset="utf-8"></head>
-<body style="font-family:system-ui;max-width:600px;margin:40px auto;padding:0 20px">
-  <h1>Agent Orchestra</h1>
-  <p>Server is running. API endpoints:</p>
-  <ul>
-    <li><a href="/health">/health</a> — health check</li>
-    <li><a href="/api/status">/api/status</a> — server status</li>
-    <li><a href="/api/jobs">/api/jobs</a> — list jobs</li>
-    <li><a href="/api/superpowers">/api/superpowers</a> — list superpowers</li>
-  </ul>
-  <p style="color:#666">Web dashboard coming in a future release.</p>
-</body>
-</html>`)
-      return
-    }
-
-    res.writeHead(404)
-    json(res, { error: 'Not found' })
+    notFound(res)
   } catch (err) {
     res.writeHead(500)
-    json(res, { error: err instanceof Error ? err.message : 'Internal error' })
+    json(res, { error: err instanceof Error ? err.message : 'Internal error' }, 500)
   }
 })
 
-server.listen(PORT, () => {
-  console.log(`Agent Orchestra server listening on http://localhost:${PORT}`)
-  console.log(`Storage: ${STORAGE_DIR}`)
-  console.log(`\nEndpoints:`)
-  console.log(`  GET /health              — health check`)
-  console.log(`  GET /api/status          — server status`)
-  console.log(`  GET /api/jobs            — list all jobs`)
-  console.log(`  GET /api/jobs/:id        — get job details`)
-  console.log(`  GET /api/superpowers     — list superpowers`)
-  console.log(`  GET /api/superpowers/:id — get superpower details`)
-})
+// ─── Scan helpers (no global list on FileRunStore/FileTaskStore) ──
 
-// Graceful shutdown
-process.on('SIGINT', () => {
-  console.log('\nShutting down...')
-  server.close(() => process.exit(0))
-})
-
-// Helpers
-function json(res: ServerResponse, data: unknown) {
-  res.setHeader('Content-Type', 'application/json')
-  res.end(JSON.stringify(data, null, 2))
-}
-
-async function countJobs(): Promise<number> {
+async function scanAllRuns() {
+  const { readdir, readFile } = await import('node:fs/promises')
   try {
-    const entries = await readdir(join(STORAGE_DIR, 'jobs'))
-    return entries.length
-  } catch {
-    return 0
-  }
-}
-
-async function listJobs(): Promise<unknown[]> {
-  try {
-    const jobsDir = join(STORAGE_DIR, 'jobs')
-    const entries = await readdir(jobsDir)
-    const jobs = []
+    const dir = join(STORAGE_DIR, 'runs')
+    const entries = await readdir(dir)
+    const runs = []
     for (const entry of entries) {
+      if (!entry.endsWith('.json')) continue
       try {
-        const raw = await readFile(join(jobsDir, entry, 'job.json'), 'utf-8')
-        const job = JSON.parse(raw) as Record<string, unknown>
-        jobs.push({
-          id: job.id,
-          title: job.title,
-          status: job.status,
-          protocol: job.protocol,
-          createdAt: job.createdAt,
-        })
+        const raw = await readFile(join(dir, entry), 'utf-8')
+        runs.push(JSON.parse(raw))
       } catch {
-        // skip invalid entries
+        /* skip */
       }
     }
-    return jobs
+    return runs
   } catch {
     return []
   }
 }
 
-async function loadJob(jobId: string): Promise<unknown | null> {
+async function scanAllTasks() {
+  const { readdir, readFile } = await import('node:fs/promises')
   try {
-    const raw = await readFile(join(STORAGE_DIR, 'jobs', jobId, 'job.json'), 'utf-8')
-    return JSON.parse(raw) as unknown
+    const dir = join(STORAGE_DIR, 'tasks')
+    const entries = await readdir(dir)
+    const tasks = []
+    for (const entry of entries) {
+      if (!entry.endsWith('.json')) continue
+      try {
+        const raw = await readFile(join(dir, entry), 'utf-8')
+        tasks.push(JSON.parse(raw))
+      } catch {
+        /* skip */
+      }
+    }
+    return tasks
   } catch {
-    return null
+    return []
   }
 }
+
+// ─── Start ─────────────────────────────────────────────────────────
+
+server.listen(PORT, () => {
+  console.log(`Agent Orchestra server listening on http://localhost:${PORT}`)
+  console.log(`Storage: ${STORAGE_DIR}`)
+  console.log(`Dashboard: http://localhost:${PORT}/`)
+})
+
+process.on('SIGINT', () => {
+  console.log('\nShutting down...')
+  server.close(() => process.exit(0))
+})

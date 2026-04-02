@@ -16,3 +16,4 @@ export { DefaultOutputNormalizer, parseFindingsFromMarkdown } from './output/ind
 export * from './roles/index.js'
 export * from './tools/index.js'
 export * from './observability/index.js'
+export * from './projects/index.js'
