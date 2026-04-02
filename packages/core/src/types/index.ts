@@ -49,3 +49,20 @@ export type {
 export type { EvidencePacket, AgentContext } from './context.js'
 
 export type { ProtocolExecutionDeps } from './orchestrator.js'
+
+export type {
+  RunSource,
+  RunStatus,
+  RunRecord,
+  ToolCallRecord,
+  GuardViolation,
+  TaskOrigin,
+  TaskStatus,
+  TaskState,
+  SessionType,
+  SessionState,
+  TrustLevel,
+  TranscriptEntry,
+  RunMode,
+  RunRequest,
+} from './runtime.js'

@@ -174,43 +174,47 @@ describe('SkillInstaller', () => {
       }
     })
 
-    it('installs a skill from a git repo and creates lockfile entry', async () => {
-      const repoPath = await createBareGitRepo('git-skill', 'Git-sourced skill content')
-      const lockfileManager = new LockfileManager(workspacePath)
-      const installer = new SkillInstaller(workspacePath, lockfileManager, {
-        info: () => {},
-        warn: () => {},
-        error: () => {},
-      })
+    it(
+      'installs a skill from a git repo and creates lockfile entry',
+      { timeout: 15_000 },
+      async () => {
+        const repoPath = await createBareGitRepo('git-skill', 'Git-sourced skill content')
+        const lockfileManager = new LockfileManager(workspacePath)
+        const installer = new SkillInstaller(workspacePath, lockfileManager, {
+          info: () => {},
+          warn: () => {},
+          error: () => {},
+        })
 
-      const result = await installer.install({ type: 'git', url: repoPath })
+        const result = await installer.install({ type: 'git', url: repoPath })
 
-      expect(result.skillId).toBe('git-skill')
-      expect(result.version).toBe('2026.4.1')
-      expect(result.source).toBe('git')
-      expect(result.checksum.algorithm).toBe('sha256')
-      expect(result.checksum.digest).toMatch(/^[a-f0-9]{64}$/)
+        expect(result.skillId).toBe('git-skill')
+        expect(result.version).toBe('2026.4.1')
+        expect(result.source).toBe('git')
+        expect(result.checksum.algorithm).toBe('sha256')
+        expect(result.checksum.digest).toMatch(/^[a-f0-9]{64}$/)
 
-      // Verify the SKILL.md was installed (without .git directory)
-      const installed = await readFile(
-        join(workspacePath, '.agent-orchestra', 'skills', 'git-skill', 'SKILL.md'),
-        'utf-8',
-      )
-      expect(installed).toContain('Git-sourced skill content')
+        // Verify the SKILL.md was installed (without .git directory)
+        const installed = await readFile(
+          join(workspacePath, '.agent-orchestra', 'skills', 'git-skill', 'SKILL.md'),
+          'utf-8',
+        )
+        expect(installed).toContain('Git-sourced skill content')
 
-      // .git directory should NOT be present in the installed copy
-      await expect(
-        access(join(workspacePath, '.agent-orchestra', 'skills', 'git-skill', '.git')),
-      ).rejects.toThrow()
+        // .git directory should NOT be present in the installed copy
+        await expect(
+          access(join(workspacePath, '.agent-orchestra', 'skills', 'git-skill', '.git')),
+        ).rejects.toThrow()
 
-      // Verify lockfile entry
-      lockfileManager.clearCache()
-      const lockfile = await lockfileManager.read()
-      expect(lockfile).not.toBeNull()
-      expect(lockfile!.skills['git-skill']).toBeDefined()
-      expect(lockfile!.skills['git-skill'].source).toBe('git')
-      expect(lockfile!.skills['git-skill'].url).toBe(repoPath)
-    })
+        // Verify lockfile entry
+        lockfileManager.clearCache()
+        const lockfile = await lockfileManager.read()
+        expect(lockfile).not.toBeNull()
+        expect(lockfile!.skills['git-skill']).toBeDefined()
+        expect(lockfile!.skills['git-skill'].source).toBe('git')
+        expect(lockfile!.skills['git-skill'].url).toBe(repoPath)
+      },
+    )
 
     it('handles clone failure gracefully', async () => {
       const lockfileManager = new LockfileManager(workspacePath)

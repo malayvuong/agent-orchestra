@@ -1,5 +1,7 @@
 /** Spec v1.3 §4.3 */
-export type AgentRole = 'architect' | 'reviewer' | 'builder'
+export type DebateRole = 'architect' | 'reviewer' | 'builder'
+export type GeneralRole = 'planner' | 'executor' | 'verifier' | 'researcher' | 'operator'
+export type AgentRole = DebateRole | GeneralRole
 
 /** Spec v1.3 §4.4 */
 export type AgentLens =

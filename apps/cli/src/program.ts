@@ -7,6 +7,7 @@ import { registerJobCommand } from './commands/job.js'
 import { registerSuperpowersCommand } from './commands/superpowers.js'
 import { registerInitCommand } from './commands/init.js'
 import { registerServeCommand } from './commands/serve.js'
+import { registerAutomationCommand } from './commands/automation.js'
 import { AGENT_ORCHESTRA_VERSION } from '@malayvuong/agent-orchestra-shared'
 
 export function createProgram(): Command {
@@ -28,6 +29,7 @@ export function createProgram(): Command {
   registerSuperpowersCommand(program)
   registerInitCommand(program)
   registerServeCommand(program)
+  registerAutomationCommand(program)
 
   return program
 }

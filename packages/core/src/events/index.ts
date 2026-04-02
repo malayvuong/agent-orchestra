@@ -13,3 +13,4 @@ export type {
 } from './types.js'
 
 export { EventBus } from './event-bus.js'
+export { PersistedEventBus } from './persisted-event-bus.js'

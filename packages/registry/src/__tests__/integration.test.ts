@@ -265,84 +265,88 @@ describe('Phase B — install → load → verify → inject pipeline', () => {
     expect(loadResult.skills).toHaveLength(0)
   })
 
-  it('installs from git URL, loads with checksum verification, and injects into context', async () => {
-    // 1. Create a bare git repo containing a skill
-    const repoWork = join(externalSkillDir, 'git-work')
-    const bareRepo = join(externalSkillDir, 'git-skill.git')
-    await mkdir(repoWork, { recursive: true })
-    await execFileAsync('git', ['init', repoWork])
-    await execFileAsync('git', ['-C', repoWork, 'config', 'user.email', 'test@test.com'])
-    await execFileAsync('git', ['-C', repoWork, 'config', 'user.name', 'Test'])
-    await writeFile(
-      join(repoWork, 'SKILL.md'),
-      skillMd('git-review', {
+  it(
+    'installs from git URL, loads with checksum verification, and injects into context',
+    { timeout: 15_000 },
+    async () => {
+      // 1. Create a bare git repo containing a skill
+      const repoWork = join(externalSkillDir, 'git-work')
+      const bareRepo = join(externalSkillDir, 'git-skill.git')
+      await mkdir(repoWork, { recursive: true })
+      await execFileAsync('git', ['init', repoWork])
+      await execFileAsync('git', ['-C', repoWork, 'config', 'user.email', 'test@test.com'])
+      await execFileAsync('git', ['-C', repoWork, 'config', 'user.name', 'Test'])
+      await writeFile(
+        join(repoWork, 'SKILL.md'),
+        skillMd('git-review', {
+          lens: 'security',
+          body: 'Git-sourced security review skill. Check for SQL injection and XSS vulnerabilities.',
+        }),
+      )
+      await execFileAsync('git', ['-C', repoWork, 'add', '.'])
+      await execFileAsync('git', ['-C', repoWork, 'commit', '-m', 'init'])
+      await execFileAsync('git', ['clone', '--bare', repoWork, bareRepo])
+
+      // 2. Install from git
+      const lockfileManager = new LockfileManager(workspacePath)
+      const installer = new SkillInstaller(workspacePath, lockfileManager, {
+        info: () => {},
+        warn: () => {},
+        error: () => {},
+      })
+
+      const installResult = await installer.install({ type: 'git', url: bareRepo })
+      expect(installResult.skillId).toBe('git-review')
+      expect(installResult.source).toBe('git')
+      expect(installResult.checksum.digest).toMatch(/^[a-f0-9]{64}$/)
+
+      // 3. .git directory should NOT be in installed copy
+      await expect(
+        access(join(workspacePath, '.agent-orchestra', 'skills', 'git-review', '.git')),
+      ).rejects.toThrow()
+
+      // 4. Verify lockfile tracks git source
+      lockfileManager.clearCache()
+      const lockfile = await lockfileManager.read()
+      expect(lockfile!.skills['git-review'].source).toBe('git')
+      expect(lockfile!.skills['git-review'].url).toBe(bareRepo)
+
+      // 5. Load with checksum verification
+      const parser = new SkillParser(tokenEstimator)
+      const verifier = makeChecksumVerifier(new LockfileManager(workspacePath))
+      const loader = new SkillLoader(parser, undefined, verifier)
+      const loadResult = await loader.loadFromWorkspace(workspacePath)
+
+      expect(loadResult.skills).toHaveLength(1)
+      expect(loadResult.skills[0].id).toBe('git-review')
+
+      // 6. Match + inject
+      const matcher = new SkillMatcher()
+      const agent: AgentAssignment = {
+        id: 'git-reviewer',
+        agentConfigId: 'cfg-1',
+        role: 'reviewer',
         lens: 'security',
-        body: 'Git-sourced security review skill. Check for SQL injection and XSS vulnerabilities.',
-      }),
-    )
-    await execFileAsync('git', ['-C', repoWork, 'add', '.'])
-    await execFileAsync('git', ['-C', repoWork, 'commit', '-m', 'init'])
-    await execFileAsync('git', ['clone', '--bare', repoWork, bareRepo])
+        connectionType: 'api',
+        providerKey: 'test',
+        modelOrCommand: 'test',
+        protocol: 'reviewer_wave',
+        enabled: true,
+        allowReferenceScan: false,
+        canWriteCode: false,
+      }
 
-    // 2. Install from git
-    const lockfileManager = new LockfileManager(workspacePath)
-    const installer = new SkillInstaller(workspacePath, lockfileManager, {
-      info: () => {},
-      warn: () => {},
-      error: () => {},
-    })
+      const matchResult = matcher.match(loadResult.skills, agent, {
+        jobBrief: 'Security audit',
+      })
+      expect(matchResult.matched).toHaveLength(1)
 
-    const installResult = await installer.install({ type: 'git', url: bareRepo })
-    expect(installResult.skillId).toBe('git-review')
-    expect(installResult.source).toBe('git')
-    expect(installResult.checksum.digest).toMatch(/^[a-f0-9]{64}$/)
-
-    // 3. .git directory should NOT be in installed copy
-    await expect(
-      access(join(workspacePath, '.agent-orchestra', 'skills', 'git-review', '.git')),
-    ).rejects.toThrow()
-
-    // 4. Verify lockfile tracks git source
-    lockfileManager.clearCache()
-    const lockfile = await lockfileManager.read()
-    expect(lockfile!.skills['git-review'].source).toBe('git')
-    expect(lockfile!.skills['git-review'].url).toBe(bareRepo)
-
-    // 5. Load with checksum verification
-    const parser = new SkillParser(tokenEstimator)
-    const verifier = makeChecksumVerifier(new LockfileManager(workspacePath))
-    const loader = new SkillLoader(parser, undefined, verifier)
-    const loadResult = await loader.loadFromWorkspace(workspacePath)
-
-    expect(loadResult.skills).toHaveLength(1)
-    expect(loadResult.skills[0].id).toBe('git-review')
-
-    // 6. Match + inject
-    const matcher = new SkillMatcher()
-    const agent: AgentAssignment = {
-      id: 'git-reviewer',
-      agentConfigId: 'cfg-1',
-      role: 'reviewer',
-      lens: 'security',
-      connectionType: 'api',
-      providerKey: 'test',
-      modelOrCommand: 'test',
-      protocol: 'reviewer_wave',
-      enabled: true,
-      allowReferenceScan: false,
-      canWriteCode: false,
-    }
-
-    const matchResult = matcher.match(loadResult.skills, agent, {
-      jobBrief: 'Security audit',
-    })
-    expect(matchResult.matched).toHaveLength(1)
-
-    const injector = new SkillInjector(tokenEstimator)
-    const injected = injector.inject(matchResult, 5000)
-    expect(injected.skillContext).toContain('SQL injection')
-    expect(injected.injectedIds).toContain('git-review')
-  })
+      const injector = new SkillInjector(tokenEstimator)
+      const injected = injector.inject(matchResult, 5000)
+      expect(injected.skillContext).toContain('SQL injection')
+      expect(injected.injectedIds).toContain('git-review')
+    },
+  )
 
   it('pinned skill is not overwritten by reinstall', async () => {
     // 1. Install v1

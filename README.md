@@ -126,6 +126,105 @@ ao run --target ./docs/spec.md --superpower plan-review \
   --reviewer-provider codex-cli
 ```
 
+## Runtime Architecture (v2)
+
+Agent Orchestra has two execution modes:
+
+### Review mode (original)
+
+The architect-reviewer debate loop described above. Use `ao run` with a target file.
+
+### Automation mode (new)
+
+Run deterministic workflows as isolated background jobs, independent of any chat session.
+
+```bash
+ao automation add ./jobs/daily-check.json
+ao automation run daily-check
+ao automation logs daily-check
+ao automation list
+```
+
+A job definition is a JSON file:
+
+```json
+{
+  "id": "daily-check",
+  "name": "Daily health check",
+  "schedule": "every 1d",
+  "enabled": true,
+  "workflow": [
+    { "id": "s1", "type": "script", "name": "Run tests", "config": { "command": "npm test" } },
+    { "id": "s2", "type": "script", "name": "Check build", "config": { "command": "npm run build" }, "dependsOn": ["s1"] }
+  ]
+}
+```
+
+### How it works under the hood
+
+```
+                    ┌─────────────┐
+  User / Cron / ──▶ │  Entrypoint  │
+  Webhook           └──────┬──────┘
+                           │ RunRequest
+                    ┌──────▼──────┐
+                    │   Runtime    │ ◄── sessions, transcripts, execution guard
+                    └──────┬──────┘
+                ┌──────────┼──────────┐
+                ▼          ▼          ▼
+         ┌──────────┐ ┌────────┐ ┌──────────┐
+         │Interactive│ │Automat.│ │Background│
+         │  Runner   │ │ Runner │ │  Runner  │
+         └──────────┘ └────────┘ └──────────┘
+                │          │
+         ┌──────▼──┐  ┌───▼────┐
+         │ Debate  │  │Workflow│
+         │Protocol │  │ Steps  │
+         └─────────┘  └────────┘
+```
+
+Key components:
+
+| Component | What it does |
+|-----------|-------------|
+| **Runtime** | Central router. Gets or creates sessions, routes requests to runners, applies the execution guard, logs transcripts. |
+| **Execution Guard** | Catches "model promised but didn't act". Blocks responses that contain promises but zero tool calls. Runs after model output, before delivery. |
+| **Task Classifier** | Decides if a user message needs action (`fix the bug` = yes) or explanation (`what is X` = no). The guard uses this to know when to enforce. |
+| **InteractiveRunner** | Handles user-facing requests. Creates task + run records, calls the model, logs tool calls and evidence. |
+| **AutomationRunner** | Executes workflow steps in dependency order. Each step logged as a ToolCallRecord. Retry support per step, fail-fast on exhaustion. |
+| **Scheduler** | Registers automation jobs with interval schedules (`every 5m`, `every 1h`, `every 1d`). Re-schedules after each execution. |
+
+### Observability
+
+Every execution produces a `RunRecord` with:
+- run ID, session ID, task ID
+- start/end timestamps
+- status (running, completed, blocked, failed, cancelled)
+- all tool calls with timing
+- guard violations (if any)
+- failure reason
+
+```bash
+ao automation logs <job-id>    # see run history for automation jobs
+ao job show <job-id>           # see debate review details
+```
+
+### Agent Roles
+
+Debate roles (existing): `architect`, `reviewer`, `builder`
+
+General roles (new): `planner`, `executor`, `verifier`, `researcher`, `operator`
+
+Each role defines what tools it can use, whether it can mutate state, and what output format it must produce. See `packages/core/src/roles/role-definitions.ts`.
+
+### Tool Registry
+
+Tools declare metadata: category, side effects, required approval, allowed roles, timeout. The registry enables role-based access control — a `planner` can only use read tools, an `executor` can read + write + exec.
+
+### Structured Logging
+
+The `FileLogger` writes JSONL with level filtering and context propagation (runId, sessionId). The `PersistedEventBus` extends the existing EventBus to write all events to disk before dispatching.
+
 ## Why Use It
 
 Agent Orchestra is optimized for execution-readiness review.
@@ -140,18 +239,26 @@ It is good at catching:
 
 ## Output and Audit Trail
 
-Each run produces:
-- persisted rounds
-- classified findings
-- apply summaries
-- final-check summaries
-- a baseline-aware job record you can inspect later
+Review runs produce:
+- persisted rounds with architect/reviewer outputs
+- classified findings (critical, follow-up, note)
+- apply summaries (files written, unchanged, skipped)
+- final-check summaries with verdict and score
+- a baseline-aware job record
+
+Automation runs produce:
+- RunRecord with tool call trace and timing
+- per-step status (ok, error, timeout)
+- failure reason and guard violations
+- structured JSONL logs
 
 Useful commands:
 
 ```bash
-ao job list
-ao job show <job-id>
+ao job list                    # list review jobs
+ao job show <job-id>           # inspect a review job
+ao automation list             # list automation jobs
+ao automation logs <job-id>    # inspect automation run history
 ```
 
 ## Use This Repo Directly
@@ -182,6 +289,8 @@ pnpm unlink:ao
 - [Plan Review](docs/superpowers/plan-review.md)
 - [MCP Integration](docs/integrations/mcp.md)
 - [Skill Format Reference](docs/skills/skill-format.md)
+- [Architecture Overview](docs/architecture-overview.md)
+- [Implementation Plan v2](docs/implementation-plan-v2.md)
 
 ## Repository
 
