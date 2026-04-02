@@ -1,9 +1,13 @@
 import type { Command } from 'commander'
-import { resolve, join } from 'node:path'
+import { resolve, join, dirname } from 'node:path'
 import { readFile, writeFile, unlink, mkdir } from 'node:fs/promises'
 import { existsSync, openSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import { spawn } from 'node:child_process'
 import { createConnection } from 'node:net'
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = dirname(__filename)
 
 const STORAGE_DIR_NAME = '.agent-orchestra'
 const DAEMON_DIR_NAME = 'daemon'
@@ -93,9 +97,9 @@ async function daemonStart(opts: { path: string; port: string }): Promise<void> 
   const logFd = openSync(logFile, 'a')
 
   // Find the server entry point
-  const serverScript = resolveServerScript()
+  const target = resolveServerScript()
 
-  const child = spawn(process.execPath, [serverScript], {
+  const child = spawn(process.execPath, [...target.execArgs, target.script], {
     cwd: workspacePath,
     env: {
       ...process.env,
@@ -136,17 +140,29 @@ async function daemonStart(opts: { path: string; port: string }): Promise<void> 
   }
 }
 
-function resolveServerScript(): string {
-  // Try to find the server entry point relative to this CLI package
-  // In prod: apps/server/dist/index.js
-  // In dev: apps/server/src/index.ts (needs tsx)
-  const possiblePaths = [
+type ServerTarget = { script: string; execArgs: string[] }
+
+function resolveServerScript(): ServerTarget {
+  // Try multiple resolution strategies:
+  // 1. Relative from this file (works in dev with tsx and in dist with node)
+  // 2. Relative from CLI package root (works when tsup bundles to dist/)
+  const candidates = [
+    // From source: apps/cli/src/commands/ → apps/server/
     join(__dirname, '../../../server/dist/index.js'),
     join(__dirname, '../../../server/src/index.ts'),
+    // From dist: apps/cli/dist/ → apps/server/
+    join(__dirname, '../../server/dist/index.js'),
+    join(__dirname, '../../server/src/index.ts'),
   ]
 
-  for (const p of possiblePaths) {
-    if (existsSync(p)) return p
+  for (const candidate of candidates) {
+    if (existsSync(candidate)) {
+      const isTsFile = candidate.endsWith('.ts')
+      return {
+        script: candidate,
+        execArgs: isTsFile ? ['--import', 'tsx'] : [],
+      }
+    }
   }
 
   throw new Error(
