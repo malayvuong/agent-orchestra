@@ -181,11 +181,14 @@ async function runCommand(opts: {
     if (opts.lens === 'logic' && sp.agentPreset.reviewer.lens) {
       effectiveLens = sp.agentPreset.reviewer.lens
     }
-    if (!isExplicitProvider && sp.agentPreset.reviewer.provider) {
-      // Superpower specifies a provider, but auto mode overrides later
-      effectiveProvider = opts.provider // keep 'auto' for auto-detection
+    if (!isExplicitProvider) {
+      // No explicit provider — keep 'auto' so provider resolution auto-detects
+      effectiveProvider = opts.provider
     }
-    if (!isExplicitModel && sp.agentPreset.reviewer.model) {
+    if (!isExplicitModel && !isExplicitProvider) {
+      // No explicit model or provider — let provider resolution pick the default model
+      effectiveModel = ''
+    } else if (!isExplicitModel && sp.agentPreset.reviewer.model) {
       effectiveModel = sp.agentPreset.reviewer.model
     }
   }

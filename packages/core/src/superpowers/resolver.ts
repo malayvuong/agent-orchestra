@@ -255,12 +255,12 @@ export class SuperpowerResolver {
 
     // --- Architect assignment ---
     if (preset.architect?.enabled) {
-      const architectProvider = overrides?.provider ?? preset.architect.provider ?? 'openai'
+      // When no explicit provider override, use 'auto' so resolveProviderPlans
+      // can detect the correct CLI/API provider and pick a matching model.
+      const architectProvider = overrides?.provider ?? 'auto'
       const architectModel =
         overrides?.model ??
-        (overrides?.provider
-          ? getDefaultModelForProvider(architectProvider)
-          : (preset.architect.model ?? getDefaultModelForProvider(architectProvider)))
+        (overrides?.provider ? getDefaultModelForProvider(architectProvider) : '') // empty = let provider resolution pick the default model
 
       const architectAssignment: AgentAssignment = {
         id: `${superpower.id}-architect`,
@@ -280,12 +280,9 @@ export class SuperpowerResolver {
 
     // --- Reviewer assignment(s) ---
     const reviewerLens = overrides?.lens ?? preset.reviewer.lens
-    const reviewerProvider = overrides?.provider ?? preset.reviewer.provider ?? 'openai'
+    const reviewerProvider = overrides?.provider ?? 'auto'
     const reviewerModel =
-      overrides?.model ??
-      (overrides?.provider
-        ? getDefaultModelForProvider(reviewerProvider)
-        : (preset.reviewer.model ?? getDefaultModelForProvider(reviewerProvider)))
+      overrides?.model ?? (overrides?.provider ? getDefaultModelForProvider(reviewerProvider) : '') // empty = let provider resolution pick the default model
     const reviewerCount = overrides?.reviewerCount ?? preset.reviewer.count ?? 1
 
     if (reviewerCount > 1) {

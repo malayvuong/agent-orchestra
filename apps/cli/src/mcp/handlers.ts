@@ -142,8 +142,8 @@ export async function handleReviewTarget(
   // Superpower resolution
   let resolvedSp: ResolvedSuperpower | null = null
   let resolvedSkills: SkillDefinition[] = []
-  let effectiveProvider = 'auto'
-  let effectiveModel = ''
+  const effectiveProvider = 'auto'
+  const effectiveModel = ''
   let effectiveLens = args.lens ?? 'logic'
   let effectiveProtocol = 'single_challenger'
 
@@ -175,8 +175,8 @@ export async function handleReviewTarget(
     effectiveProtocol = resolvedSp.protocol
     const sp = resolvedSp.superpower
     if (sp.agentPreset.reviewer.lens) effectiveLens = sp.agentPreset.reviewer.lens
-    if (sp.agentPreset.reviewer.provider) effectiveProvider = sp.agentPreset.reviewer.provider
-    if (sp.agentPreset.reviewer.model) effectiveModel = sp.agentPreset.reviewer.model
+    // Provider and model are resolved by resolveProviderPlans via auto-detection;
+    // superpower defaults are now embedded in agent assignments as 'auto'
 
     // Check approval requirement
     if (sp.requiresApproval) {

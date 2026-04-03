@@ -122,7 +122,8 @@ describe('SuperpowerResolver.resolve() — agent assignments', () => {
       expect(assignment.id).toBeTruthy()
       expect(assignment.role).toBeTruthy()
       expect(assignment.providerKey).toBeTruthy()
-      expect(assignment.modelOrCommand).toBeTruthy()
+      // modelOrCommand may be empty when provider is 'auto' — resolved later by resolveProviderPlans
+      expect(typeof assignment.modelOrCommand).toBe('string')
     }
   })
 })
