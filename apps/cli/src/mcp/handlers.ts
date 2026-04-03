@@ -12,6 +12,7 @@ import {
   EventBus,
   FileJobStore,
   FileRoundStore,
+  FileConversationStore,
   Orchestrator,
   ProtocolRegistry,
   DefaultCancellationRegistry,
@@ -35,6 +36,7 @@ import type {
   ResolvedSuperpower,
   CapabilityScope,
   SkillDefinition,
+  DebateEventMap,
 } from '@malayvuong/agent-orchestra-core'
 import { loadAgentsConfig } from '../init/agents-config.js'
 import { buildRunComparison, selectComparableJobs } from '../jobs/compare-runs.js'
@@ -261,7 +263,7 @@ export async function handleReviewTarget(
   // Wire dependencies (same pattern as run.ts)
   const jobStore = new FileJobStore(baseDir)
   const roundStore = new FileRoundStore(baseDir)
-  const eventBus = new EventBus()
+  const eventBus = new EventBus<DebateEventMap>()
   const cancellationRegistry = new DefaultCancellationRegistry()
   const outputNormalizer = new DefaultOutputNormalizer()
   const protocolRegistry = new ProtocolRegistry()
@@ -313,6 +315,7 @@ export async function handleReviewTarget(
     cancellationRegistry,
     budgetManager: budgetManager as ProtocolExecutionDeps['budgetManager'],
     resolvedSkills,
+    conversationStore: new FileConversationStore(baseDir),
   }
 
   const orchestrator = new Orchestrator(protocolRegistry, deps)

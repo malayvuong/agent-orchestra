@@ -48,6 +48,8 @@ export type {
 
 export type { EvidencePacket, AgentContext } from './context.js'
 
+export type { AgentMessage, ContentBlock, TextBlock, FindingBlock } from './message.js'
+
 export type { ProtocolExecutionDeps } from './orchestrator.js'
 
 export type {

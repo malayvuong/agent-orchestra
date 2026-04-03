@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { SingleChallengerRunner } from '../single-challenger.js'
 import { DefaultCancellationRegistry } from '../../orchestrator/cancellation.js'
 import { EventBus } from '../../events/event-bus.js'
+import type { DebateEventMap } from '../../events/debate-events.js'
 import type { Job } from '../../types/job.js'
 import type { ProtocolExecutionDeps } from '../../types/orchestrator.js'
 import type { ProviderOutput, NormalizationResult, AgentOutput } from '../../types/output.js'
@@ -149,11 +150,11 @@ function makeJob(overrides: Partial<Job> = {}): Job {
 function makeMockDeps(): {
   deps: ProtocolExecutionDeps
   savedRounds: Round[]
-  eventBus: EventBus
+  eventBus: EventBus<DebateEventMap>
   providerCallCount: { count: number }
 } {
   const savedRounds: Round[] = []
-  const eventBus = new EventBus()
+  const eventBus = new EventBus<DebateEventMap>()
   const cancellationRegistry = new DefaultCancellationRegistry()
   const providerCallCount = { count: 0 }
 
@@ -275,6 +276,10 @@ function makeMockDeps(): {
     cancellationRegistry,
     budgetManager: { fitToLimit: (ctx: unknown) => ctx },
     resolvedSkills: mockResolvedSkills,
+    conversationStore: {
+      append: vi.fn().mockResolvedValue(undefined),
+      loadByJob: vi.fn().mockResolvedValue([]),
+    },
   } as unknown as ProtocolExecutionDeps
 
   return { deps, savedRounds, eventBus, providerCallCount }
@@ -317,6 +322,30 @@ describe('SingleChallengerRunner', () => {
     await runner.execute(job, deps)
 
     expect(providerCallCount.count).toBe(4)
+  })
+
+  it('should append to conversation store for each agent step', async () => {
+    const { deps } = makeMockDeps()
+    const job = makeJob()
+
+    await runner.execute(job, deps)
+
+    const mockConvStore = deps.conversationStore as { append: ReturnType<typeof vi.fn> }
+    // analysis, review, rebuttal = 3 agent steps (convergence is synthetic, not an agent call)
+    expect(mockConvStore.append).toHaveBeenCalledTimes(3)
+
+    // Verify message structure of first append (analysis)
+    const firstCall = mockConvStore.append.mock.calls[0][0]
+    expect(firstCall).toMatchObject({
+      jobId: job.id,
+      role: 'architect',
+      state: 'analysis',
+      sender: 'architect-1',
+    })
+    expect(firstCall.id).toBeDefined()
+    expect(firstCall.timestamp).toBeDefined()
+    expect(firstCall.contentBlocks.length).toBeGreaterThan(0)
+    expect(firstCall.contentBlocks[0].type).toBe('text')
   })
 
   it('uses job.maxRounds as the step budget for iterative review', async () => {

@@ -1,10 +1,10 @@
 import { describe, it, expect, vi } from 'vitest'
 import { EventBus } from '../event-bus.js'
-import type { JobUpdateEvent, ErrorEvent } from '../types.js'
+import type { JobUpdateEvent, ErrorEvent, DebateEventMap } from '../debate-events.js'
 
 describe('EventBus', () => {
   it('should emit and receive typed events', () => {
-    const bus = new EventBus()
+    const bus = new EventBus<DebateEventMap>()
     const handler = vi.fn()
 
     bus.on('job:update', handler)
@@ -23,7 +23,7 @@ describe('EventBus', () => {
   })
 
   it('should support multiple listeners for the same event', () => {
-    const bus = new EventBus()
+    const bus = new EventBus<DebateEventMap>()
     const handler1 = vi.fn()
     const handler2 = vi.fn()
 
@@ -44,7 +44,7 @@ describe('EventBus', () => {
   })
 
   it('should not receive events after off()', () => {
-    const bus = new EventBus()
+    const bus = new EventBus<DebateEventMap>()
     const handler = vi.fn()
 
     bus.on('job:update', handler)
@@ -63,7 +63,7 @@ describe('EventBus', () => {
   })
 
   it('should support different event types independently', () => {
-    const bus = new EventBus()
+    const bus = new EventBus<DebateEventMap>()
     const jobHandler = vi.fn()
     const errorHandler = vi.fn()
 
@@ -94,7 +94,7 @@ describe('EventBus', () => {
   })
 
   it('should support once() for single-fire listeners', () => {
-    const bus = new EventBus()
+    const bus = new EventBus<DebateEventMap>()
     const handler = vi.fn()
 
     bus.once('job:update', handler)
@@ -113,7 +113,7 @@ describe('EventBus', () => {
   })
 
   it('should remove all listeners with removeAllListeners()', () => {
-    const bus = new EventBus()
+    const bus = new EventBus<DebateEventMap>()
     const handler1 = vi.fn()
     const handler2 = vi.fn()
 

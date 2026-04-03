@@ -3,7 +3,7 @@ import { mkdtemp, rm, readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { PersistedEventBus } from '../persisted-event-bus.js'
-import type { JobUpdateEvent } from '../types.js'
+import type { JobUpdateEvent } from '../debate-events.js'
 
 describe('PersistedEventBus', () => {
   let baseDir: string

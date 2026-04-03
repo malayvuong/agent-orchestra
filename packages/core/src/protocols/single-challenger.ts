@@ -13,8 +13,11 @@ import type { AgentAssignment } from '../types/agent.js'
 import type { AgentOutput, ProviderOutput } from '../types/output.js'
 import type { Finding } from '../types/finding.js'
 import type { RoundStore } from '../storage/types.js'
+import type { ConversationStore } from '../storage/conversation-types.js'
+import type { AgentMessage, ContentBlock, TextBlock } from '../types/message.js'
 import type { RenderedPrompt } from '../templates/types.js'
 import type { EventBus } from '../events/event-bus.js'
+import type { DebateEventMap } from '../events/debate-events.js'
 import { renderTemplate } from '../templates/renderer.js'
 import { architectAnalysisTemplate } from '../templates/defaults/architect-analysis.js'
 import { reviewerByLensTemplate } from '../templates/defaults/reviewer-by-lens.js'
@@ -74,7 +77,7 @@ export class SingleChallengerRunner implements ProtocolRunner {
   async execute(job: Job, deps: ProtocolExecutionDeps): Promise<void> {
     const providerExecutor = deps.providerExecutor as ProviderExecutor | ProviderRouter
     const roundStore = deps.roundStore as RoundStore
-    const eventBus = deps.eventBus as EventBus
+    const eventBus = deps.eventBus as EventBus<DebateEventMap>
     const resolvedSkills = deps.resolvedSkills ?? []
 
     const failurePolicy = job.failurePolicy ?? DEFAULT_FAILURE_POLICY
@@ -105,8 +108,10 @@ export class SingleChallengerRunner implements ProtocolRunner {
 
     let roundIndex = 0
     const allFindings: Finding[] = []
-    const debateHistory: string[] = []
     let aggregateApplySummary: ApplySummary | undefined
+
+    // Structured conversation log (replaces debateHistory: string[])
+    const conversationStore = deps.conversationStore as ConversationStore | undefined
 
     // Max chars for debate history to prevent context overflow.
     // Keep ~40K chars — enough for 2-3 full rounds of context.
@@ -145,7 +150,14 @@ export class SingleChallengerRunner implements ProtocolRunner {
 
     if (architectOutput) {
       allFindings.push(...architectOutput.findings)
-      debateHistory.push(`## Architect Analysis\n\n${architectOutput.rawText}`)
+      await this.appendToConversation(
+        conversationStore,
+        architectOutput,
+        job.id,
+        roundIndex - 1,
+        architect,
+        'analysis',
+      )
     }
 
     // -----------------------------------------------------------------------
@@ -187,7 +199,14 @@ export class SingleChallengerRunner implements ProtocolRunner {
 
     if (lastReviewerOutput) {
       allFindings.push(...lastReviewerOutput.findings)
-      debateHistory.push(`## Reviewer Challenge\n\n${lastReviewerOutput.rawText}`)
+      await this.appendToConversation(
+        conversationStore,
+        lastReviewerOutput,
+        job.id,
+        roundIndex - 1,
+        reviewer,
+        'review',
+      )
     }
 
     // -----------------------------------------------------------------------
@@ -223,7 +242,11 @@ export class SingleChallengerRunner implements ProtocolRunner {
             scope: JSON.stringify(job.scope.primaryTargets),
             findings: lastReviewerText,
             clusters: '(clustering not yet implemented)',
-            debate_history: this.buildDebateHistoryText(debateHistory, MAX_DEBATE_HISTORY_CHARS),
+            debate_history: await this.loadFormattedHistory(
+              conversationStore,
+              job.id,
+              MAX_DEBATE_HISTORY_CHARS,
+            ),
             skill_context:
               deps.contextBuilder.buildFor(architect, job, {
                 skills: resolvedSkills,
@@ -237,8 +260,13 @@ export class SingleChallengerRunner implements ProtocolRunner {
 
       if (responseOutput) {
         allFindings.push(...responseOutput.findings)
-        debateHistory.push(
-          `## Architect Response (Round ${debateRound})\n\n${responseOutput.rawText}`,
+        await this.appendToConversation(
+          conversationStore,
+          responseOutput,
+          job.id,
+          roundIndex - 1,
+          architect,
+          'rebuttal',
         )
       }
 
@@ -299,7 +327,11 @@ export class SingleChallengerRunner implements ProtocolRunner {
             scope: JSON.stringify(job.scope.primaryTargets),
             lens: reviewer.lens ?? 'general',
             findings: responseText,
-            debate_history: this.buildDebateHistoryText(debateHistory, MAX_DEBATE_HISTORY_CHARS),
+            debate_history: await this.loadFormattedHistory(
+              conversationStore,
+              job.id,
+              MAX_DEBATE_HISTORY_CHARS,
+            ),
             skill_context: context.skillContext ?? '',
           })
         },
@@ -309,8 +341,13 @@ export class SingleChallengerRunner implements ProtocolRunner {
 
       if (lastReviewerOutput) {
         allFindings.push(...lastReviewerOutput.findings)
-        debateHistory.push(
-          `## Reviewer Follow-up (Round ${debateRound})\n\n${lastReviewerOutput.rawText}`,
+        await this.appendToConversation(
+          conversationStore,
+          lastReviewerOutput,
+          job.id,
+          roundIndex - 1,
+          reviewer,
+          'review',
         )
 
         // Convergence detection: if reviewer found 0 new findings, stop
@@ -425,7 +462,7 @@ export class SingleChallengerRunner implements ProtocolRunner {
     deps: ProtocolExecutionDeps
     providerExecutor: ProviderExecutor | ProviderRouter
     roundStore: RoundStore
-    eventBus: EventBus
+    eventBus: EventBus<DebateEventMap>
     findingsToApply: Finding[]
     architectResponseText: string
     failurePolicy: FailurePolicy
@@ -591,7 +628,7 @@ export class SingleChallengerRunner implements ProtocolRunner {
     deps: ProtocolExecutionDeps
     providerExecutor: ProviderExecutor | ProviderRouter
     roundStore: RoundStore
-    eventBus: EventBus
+    eventBus: EventBus<DebateEventMap>
     synthesisFindings: Finding[]
     applySummary?: ApplySummary
     failurePolicy: FailurePolicy
@@ -778,7 +815,7 @@ export class SingleChallengerRunner implements ProtocolRunner {
     deps: ProtocolExecutionDeps
     providerExecutor: ProviderExecutor | ProviderRouter
     roundStore: RoundStore
-    eventBus: EventBus
+    eventBus: EventBus<DebateEventMap>
     renderPrompt: () => RenderedPrompt | Promise<RenderedPrompt>
     failurePolicy: FailurePolicy
     isCritical: boolean
@@ -1123,6 +1160,81 @@ export class SingleChallengerRunner implements ProtocolRunner {
     return reviewerFindings.filter((finding) =>
       acknowledgedTitles.has(finding.title.trim().toLowerCase()),
     )
+  }
+
+  /** Convert an AgentOutput into an AgentMessage for the conversation log. */
+  private toAgentMessage(
+    output: AgentOutput,
+    jobId: string,
+    roundIndex: number,
+    agent: AgentAssignment,
+    state: RoundState,
+  ): AgentMessage {
+    const contentBlocks: ContentBlock[] = [
+      { type: 'text', text: output.rawText },
+      ...output.findings.map((f) => ({ type: 'finding' as const, finding: f })),
+    ]
+    return {
+      id: randomUUID(),
+      jobId,
+      roundIndex,
+      sender: agent.id,
+      role: agent.role,
+      state,
+      timestamp: new Date().toISOString(),
+      contentBlocks,
+      findingCount: output.findings.length,
+      warnings: output.warnings.length > 0 ? output.warnings : undefined,
+      usage: output.usage
+        ? {
+            inputTokens: output.usage.inputTokens,
+            outputTokens: output.usage.outputTokens,
+            latencyMs: output.usage.latencyMs,
+          }
+        : undefined,
+    }
+  }
+
+  /** Append an agent output to the conversation store, failing silently. */
+  private async appendToConversation(
+    store: ConversationStore | undefined,
+    output: AgentOutput,
+    jobId: string,
+    roundIndex: number,
+    agent: AgentAssignment,
+    state: RoundState,
+  ): Promise<void> {
+    if (!store) return
+    try {
+      await store.append(this.toAgentMessage(output, jobId, roundIndex, agent, state))
+    } catch (err) {
+      // Conversation log is best-effort — protocol continues without it
+      console.warn(
+        `[SingleChallengerRunner] Failed to append to conversation log: ${err instanceof Error ? err.message : String(err)}`,
+      )
+    }
+  }
+
+  /** Load conversation history from the store, format as markdown, and truncate. */
+  private async loadFormattedHistory(
+    store: ConversationStore | undefined,
+    jobId: string,
+    maxChars: number,
+  ): Promise<string> {
+    if (!store) return ''
+    try {
+      const messages = await store.loadByJob(jobId)
+      const entries = messages.map((m) => {
+        const text = m.contentBlocks
+          .filter((b): b is TextBlock => b.type === 'text')
+          .map((b) => b.text)
+          .join('\n\n')
+        return `## ${m.role} (${m.state}, round ${m.roundIndex})\n\n${text}`
+      })
+      return this.buildDebateHistoryText(entries, maxChars)
+    } catch {
+      return ''
+    }
   }
 
   /**

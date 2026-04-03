@@ -1,9 +1,9 @@
 import { appendFileSync, readFileSync, mkdirSync } from 'node:fs'
 import { dirname } from 'node:path'
 import { EventBus } from './event-bus.js'
-import type { OrchestraEvent, EventType, EventMap } from './types.js'
+import type { OrchestraEvent, EventType, DebateEventMap } from './debate-events.js'
 
-export class PersistedEventBus extends EventBus {
+export class PersistedEventBus extends EventBus<DebateEventMap> {
   private dirEnsured = false
 
   constructor(private logPath: string) {
@@ -11,7 +11,7 @@ export class PersistedEventBus extends EventBus {
   }
 
   // Override emit to persist before dispatching
-  emit<T extends EventType>(type: T, event: EventMap[T]): void {
+  emit<T extends EventType>(type: T, event: DebateEventMap[T]): void {
     this.ensureDir()
     const line = JSON.stringify({ _type: type, ...event }) + '\n'
     appendFileSync(this.logPath, line)

@@ -136,15 +136,13 @@ function makeMockDeps(overrides: Partial<ProtocolExecutionDeps> = {}): ProtocolE
   return {
     providerExecutor: null,
     contextBuilder: {
-      buildFor: vi
-        .fn()
-        .mockReturnValue({
-          role: 'architect',
-          mode: 'code_review',
-          pinned: {},
-          dynamic: {},
-          evidence: [],
-        }),
+      buildFor: vi.fn().mockReturnValue({
+        role: 'architect',
+        mode: 'code_review',
+        pinned: {},
+        dynamic: {},
+        evidence: [],
+      }),
     },
     outputNormalizer: { normalize: vi.fn() },
     scopeGuard: null,
@@ -162,6 +160,10 @@ function makeMockDeps(overrides: Partial<ProtocolExecutionDeps> = {}): ProtocolE
     cancellationRegistry: new DefaultCancellationRegistry(),
     budgetManager: { fitToLimit: (ctx: unknown) => ctx },
     resolvedSkills: [],
+    conversationStore: {
+      append: vi.fn().mockResolvedValue(undefined),
+      loadByJob: vi.fn().mockResolvedValue([]),
+    },
     ...overrides,
   } as unknown as ProtocolExecutionDeps
 }

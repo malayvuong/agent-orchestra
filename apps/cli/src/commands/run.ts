@@ -6,6 +6,7 @@ import {
   EventBus,
   FileJobStore,
   FileRoundStore,
+  FileConversationStore,
   EventLogger,
   Orchestrator,
   ProtocolRegistry,
@@ -25,6 +26,7 @@ import type {
   Finding,
   ResolvedSuperpower,
   SkillDefinition,
+  DebateEventMap,
 } from '@malayvuong/agent-orchestra-core'
 import { simpleTokenEstimator } from '../utils/token-estimator.js'
 import { loadAgentsConfig } from '../init/agents-config.js'
@@ -257,8 +259,9 @@ async function runCommand(opts: {
 
   const jobStore = new FileJobStore(baseDir)
   const roundStore = new FileRoundStore(baseDir)
+  const conversationStore = new FileConversationStore(baseDir)
   const eventLogger = new EventLogger(baseDir)
-  const eventBus = new EventBus()
+  const eventBus = new EventBus<DebateEventMap>()
   const cancellationRegistry = new DefaultCancellationRegistry()
   const outputNormalizer = new DefaultOutputNormalizer()
   // TemplateLoader is used internally by protocol runners via default imports
@@ -340,6 +343,7 @@ async function runCommand(opts: {
     cancellationRegistry,
     budgetManager: budgetManager as ProtocolExecutionDeps['budgetManager'],
     resolvedSkills,
+    conversationStore,
   }
 
   const orchestrator = new Orchestrator(protocolRegistry, deps)
@@ -508,6 +512,7 @@ async function runCommand(opts: {
     console.log(`\nJob ID: ${job.id}`)
     console.log(`Status: awaiting_decision`)
     console.log(`Storage: ${baseDir}/jobs/${job.id}/`)
+    console.log(`Conversation log: ${baseDir}/jobs/${job.id}/conversation.jsonl`)
   } catch (err) {
     const isCancelled = cancellationRegistry.isCancelled(job.id)
     if (isCancelled) {

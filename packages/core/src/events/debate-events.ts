@@ -90,3 +90,6 @@ export type EventMap = {
 
 /** Valid event type names. */
 export type EventType = keyof EventMap
+
+/** Alias for use with generic EventBus<TMap>. */
+export type DebateEventMap = EventMap

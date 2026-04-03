@@ -21,4 +21,5 @@ export type ProtocolExecutionDeps = {
   cancellationRegistry: CancellationRegistry
   budgetManager: ContextBudgetManager
   resolvedSkills: SkillDefinition[]
+  conversationStore: unknown
 }
