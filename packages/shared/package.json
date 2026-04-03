@@ -1,6 +1,6 @@
 {
   "name": "@malayvuong/agent-orchestra-shared",
-  "version": "2026.3.4",
+  "version": "2026.4.4",
   "description": "Shared constants, errors, and utilities for Agent Orchestra",
   "license": "MIT",
   "type": "module",

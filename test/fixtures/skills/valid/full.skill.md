@@ -1,7 +1,7 @@
 ---
 name: OWASP Top 10
 description: Comprehensive OWASP Top 10 security review guidelines
-version: 2026.3.4
+version: 2026.4.4
 license: MIT
 compatibility:
   agentOrchestra: ">=1.3.0"

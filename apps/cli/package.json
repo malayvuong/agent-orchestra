@@ -1,6 +1,6 @@
 {
   "name": "@malayvuong/agent-orchestra",
-  "version": "2026.3.4",
+  "version": "2026.4.4",
   "description": "CLI for Agent Orchestra — AI agent orchestration with skills/skillset system",
   "license": "MIT",
   "type": "module",
