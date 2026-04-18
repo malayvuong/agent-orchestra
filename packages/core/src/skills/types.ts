@@ -112,21 +112,54 @@ export const BLOCKED_NET_TARGETS = [
   '10.0.0.0/8',
   '172.16.0.0/12',
   '192.168.0.0/16',
+  '169.254.0.0/16',
   '169.254.169.254',
   'fd00::/8',
+  '::1',
+  '[::1]',
   'localhost',
   '0.0.0.0',
 ] as const
 
 export const BLOCKED_PROC_COMMANDS = [
   'rm -rf /',
+  'rm -rf ~',
+  'rm -rf *',
   'sudo',
+  'doas',
   'chmod 777',
+  'chmod -R 777',
   'curl * | sh',
+  'curl * | bash',
+  'wget * | sh',
+  'wget * | bash',
   'eval',
   'exec',
   'pkill',
   'kill -9',
+  'mkfs',
+  'dd if=*',
+  ':(){ :|:& };:',
+] as const
+
+/**
+ * Shell wrappers that can bypass command blocklists.
+ * Matched as command prefixes — if a command starts with one of these
+ * followed by a space, the inner command should also be checked.
+ */
+export const SHELL_WRAPPER_PREFIXES = [
+  'bash -c',
+  'sh -c',
+  'zsh -c',
+  'dash -c',
+  'python -c',
+  'python3 -c',
+  'ruby -e',
+  'perl -e',
+  'node -e',
+  'env',
+  'nohup',
+  'xargs',
 ] as const
 
 export const BLOCKED_SECRET_PATHS = [

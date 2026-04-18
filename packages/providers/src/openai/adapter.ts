@@ -42,6 +42,14 @@ export class OpenAIProvider implements AgentProvider {
   private readonly baseUrl: string
   private readonly defaultModel: string
 
+  /**
+   * Hostnames/IP patterns that must not be used as baseUrl (SSRF prevention).
+   * localhost and 127.0.0.1 are intentionally allowed for local model proxies
+   * (e.g. Ollama, LM Studio, vLLM).
+   */
+  private static readonly BLOCKED_BASE_HOSTS =
+    /^(10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.|169\.254\.|0\.0\.0\.0)/i
+
   constructor(config: OpenAIProviderConfig = {}) {
     this.apiKey = config.apiKey ?? process.env.OPENAI_API_KEY ?? ''
     this.baseUrl = (config.baseUrl ?? 'https://api.openai.com').replace(/\/+$/, '')
@@ -52,6 +60,22 @@ export class OpenAIProvider implements AgentProvider {
         'OpenAI API key is required. Set OPENAI_API_KEY environment variable or pass apiKey in config.',
         'auth_error',
       )
+    }
+
+    // Validate baseUrl to prevent SSRF and credential leakage to internal hosts
+    if (config.baseUrl) {
+      try {
+        const url = new URL(this.baseUrl)
+        if (OpenAIProvider.BLOCKED_BASE_HOSTS.test(url.hostname)) {
+          throw new ProviderError(
+            `OpenAI baseUrl points to a blocked internal address: ${url.hostname}`,
+            'auth_error',
+          )
+        }
+      } catch (err) {
+        if (err instanceof ProviderError) throw err
+        throw new ProviderError(`Invalid OpenAI baseUrl: ${this.baseUrl}`, 'auth_error')
+      }
     }
   }
 

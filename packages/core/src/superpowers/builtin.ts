@@ -127,7 +127,6 @@ export const BUILTIN_SUPERPOWERS: Superpower[] = [
     description:
       'Reviews implementation plans, roadmaps, and RFCs for sequencing issues, missing dependencies, scope creep, unrealistic assumptions, and implementation readiness.',
     category: 'review',
-    skillSetIds: ['plan-review'],
     skillIds: [
       'sequencing-check',
       'dependency-check',

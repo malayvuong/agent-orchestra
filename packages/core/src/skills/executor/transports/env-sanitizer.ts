@@ -11,20 +11,20 @@
 /**
  * Regex pattern matching environment variable names that must be stripped.
  *
- * Matches keys starting with:
- * - SECRET_*
- * - API_KEY*
- * - TOKEN*
- * - PASSWORD*
- * - PRIVATE_KEY*
- * - AWS_*
- * - GH_*
- * - GITHUB_TOKEN
+ * Matches keys by prefix OR suffix:
+ *
+ * Prefix matches:
+ * - SECRET_*, API_KEY*, TOKEN*, PASSWORD*, PRIVATE_KEY*
+ * - AWS_*, GH_*, GITHUB_TOKEN
+ * - ANTHROPIC_*, OPENAI_*, AZURE_*, GOOGLE_*, DEEPSEEK_*, GROK_*
+ *
+ * Suffix matches (catches VENDOR_API_KEY, MY_SECRET, etc.):
+ * - *_API_KEY, *_SECRET, *_TOKEN, *_PASSWORD, *_PRIVATE_KEY, *_CREDENTIALS
  *
  * Case-insensitive to catch all variations.
  */
 export const BLOCKED_ENV_PATTERN =
-  /^(SECRET_|API_KEY|TOKEN|PASSWORD|PRIVATE_KEY|AWS_|GH_|GITHUB_TOKEN)/i
+  /^(SECRET_|API_KEY|TOKEN|PASSWORD|PRIVATE_KEY|AWS_|GH_|GITHUB_TOKEN|ANTHROPIC_|OPENAI_|AZURE_|GOOGLE_|DEEPSEEK_|GROK_)|(^[A-Z0-9_]*_API_KEY$)|(^[A-Z0-9_]*_ACCESS_TOKEN$)|(^[A-Z0-9_]*_AUTH_TOKEN$)|(^[A-Z0-9_]*_PRIVATE_KEY$)|(^[A-Z0-9_]*_CREDENTIALS$)/i
 
 /**
  * Sanitize an environment record by removing entries whose keys match

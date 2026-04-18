@@ -26,14 +26,51 @@ const VALID_ROLES: ReadonlySet<AgentRole> = new Set<AgentRole>(['architect', 're
 
 /** Patterns that indicate potential prompt injection in skill content */
 const INJECTION_PATTERNS: ReadonlyArray<{ pattern: RegExp; label: string }> = [
+  // Direct instruction override patterns
   {
-    pattern: /IGNORE\s+PREVIOUS\s+INSTRUCTIONS/i,
+    pattern: /IGNORE\s+(ALL\s+)?PREVIOUS\s+(INSTRUCTIONS|CONTEXT)/i,
     label: 'IGNORE PREVIOUS INSTRUCTIONS',
   },
+  { pattern: /DISREGARD\s+(ALL\s+)?PREVIOUS/i, label: 'DISREGARD PREVIOUS' },
+  { pattern: /FORGET\s+(ALL\s+)?(PRIOR|PREVIOUS|ABOVE)/i, label: 'FORGET PRIOR' },
+  { pattern: /OVERRIDE\s+(ALL\s+)?INSTRUCTIONS/i, label: 'OVERRIDE INSTRUCTIONS' },
+  // Identity injection
   { pattern: /You\s+are\s+now\b/i, label: 'You are now...' },
+  { pattern: /Act\s+as\s+(a|an|if)\b/i, label: 'Act as...' },
+  { pattern: /Pretend\s+(you('re|\s+are)\s+)/i, label: 'Pretend you are...' },
+  // Prompt/context boundary injection
   { pattern: /System\s+prompt\s*:/i, label: 'System prompt:' },
   { pattern: /<\/?system\s*>/i, label: '<system> tag' },
+  { pattern: /<\/?instructions?\s*>/i, label: '<instruction> tag' },
+  { pattern: /<\/?human\s*>/i, label: '<human> tag' },
+  { pattern: /<\/?assistant\s*>/i, label: '<assistant> tag' },
+  { pattern: /\[SYSTEM\]/i, label: '[SYSTEM] marker' },
+  { pattern: /---\s*BEGIN\s+(SYSTEM|HIDDEN|SECRET)\b/i, label: 'BEGIN SYSTEM block' },
+  // New instruction injection
+  { pattern: /NEW\s+INSTRUCTIONS?\s*:/i, label: 'NEW INSTRUCTIONS:' },
+  { pattern: /IMPORTANT\s*:\s*FROM\s+NOW\s+ON/i, label: 'FROM NOW ON override' },
+  // Data exfiltration hints
+  { pattern: /SEND\s+(ALL|THE)\s+(DATA|CONTENT|OUTPUT)\s+TO/i, label: 'Data exfiltration' },
+  { pattern: /ENCODE\s+(AND\s+)?SEND/i, label: 'Encode and send' },
 ]
+
+/**
+ * Strip zero-width and invisible Unicode characters that can be used
+ * to bypass pattern matching.
+ */
+function stripInvisibleChars(text: string): string {
+  // Zero-width space, zero-width joiner, zero-width non-joiner,
+  // soft hyphen, word joiner, left-to-right/right-to-left marks
+  return text
+    .replace(/\u200B/g, '')
+    .replace(/\u200C/g, '')
+    .replace(/\u200D/g, '')
+    .replace(/\u00AD/g, '')
+    .replace(/\u2060/g, '')
+    .replace(/\u200E/g, '')
+    .replace(/\u200F/g, '')
+    .replace(/\uFEFF/g, '')
+}
 
 /** HTML tag stripping regex */
 const HTML_TAG_RE = /<[^>]*>/g
@@ -192,8 +229,10 @@ export class SkillParser {
     const rawBody = this.parseBody(rawContent)
 
     // --- Prompt injection detection (run on raw body before HTML stripping) ---
+    // Normalize invisible characters before matching to defeat homoglyph bypass
+    const normalizedBody = stripInvisibleChars(rawBody)
     for (const { pattern, label } of INJECTION_PATTERNS) {
-      if (pattern.test(rawBody)) {
+      if (pattern.test(normalizedBody)) {
         const msg = `Potential prompt injection pattern detected in "${filePath}": "${label}"`
         console.warn(msg)
         warnings.push(msg)

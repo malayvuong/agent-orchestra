@@ -46,42 +46,87 @@ export function createMcpServer(workspacePath: string): Server {
   server.setRequestHandler(CallToolRequestSchema, async (request) => {
     const { name, arguments: args } = request.params
 
-    switch (name) {
-      case 'list_superpowers':
-        return handleListSuperpowers()
+    // Runtime input validation helper
+    const requireString = (field: string): string => {
+      const value = (args as Record<string, unknown>)?.[field]
+      if (typeof value !== 'string' || value.trim() === '') {
+        throw new Error(`Missing or invalid required field: "${field}" (expected non-empty string)`)
+      }
+      return value.trim()
+    }
 
-      case 'review_target':
-        return await handleReviewTarget(
-          args as { target: string; superpower?: string; brief?: string; lens?: string },
-          workspacePath,
-        )
+    const optionalString = (field: string): string | undefined => {
+      const value = (args as Record<string, unknown>)?.[field]
+      if (value === undefined || value === null) return undefined
+      if (typeof value !== 'string') {
+        throw new Error(`Invalid field: "${field}" (expected string)`)
+      }
+      return value.trim() || undefined
+    }
 
-      case 'review_plan':
-        return await handleReviewPlan(args as { target: string; brief?: string }, workspacePath)
+    try {
+      switch (name) {
+        case 'list_superpowers':
+          return handleListSuperpowers()
 
-      case 'show_findings':
-        return await handleShowFindings(args as { jobId: string }, workspacePath)
+        case 'review_target':
+          return await handleReviewTarget(
+            {
+              target: requireString('target'),
+              superpower: optionalString('superpower'),
+              brief: optionalString('brief'),
+              lens: optionalString('lens'),
+            },
+            workspacePath,
+          )
 
-      case 'list_skills':
-        return await handleListSkills(workspacePath)
+        case 'review_plan':
+          return await handleReviewPlan(
+            { target: requireString('target'), brief: optionalString('brief') },
+            workspacePath,
+          )
 
-      case 'evaluate_policy':
-        return await handleEvaluatePolicy(
-          args as { capability: string; scope?: string | string[] },
-          workspacePath,
-        )
+        case 'show_findings':
+          return await handleShowFindings({ jobId: requireString('jobId') }, workspacePath)
 
-      case 'get_job':
-        return await handleGetJob(args as { jobId: string }, workspacePath)
+        case 'list_skills':
+          return await handleListSkills(workspacePath)
 
-      case 'compare_runs':
-        return await handleCompareRuns(args as { jobId: string }, workspacePath)
-
-      default:
-        return {
-          content: [{ type: 'text' as const, text: `Unknown tool: ${name}` }],
-          isError: true,
+        case 'evaluate_policy': {
+          const rawScope = (args as Record<string, unknown>)?.['scope']
+          const scope =
+            rawScope === undefined
+              ? undefined
+              : typeof rawScope === 'string'
+                ? rawScope
+                : Array.isArray(rawScope)
+                  ? rawScope.filter((s): s is string => typeof s === 'string')
+                  : undefined
+          return await handleEvaluatePolicy(
+            { capability: requireString('capability'), scope },
+            workspacePath,
+          )
         }
+
+        case 'get_job':
+          return await handleGetJob({ jobId: requireString('jobId') }, workspacePath)
+
+        case 'compare_runs':
+          return await handleCompareRuns({ jobId: requireString('jobId') }, workspacePath)
+
+        default:
+          return {
+            content: [{ type: 'text' as const, text: `Unknown tool: ${name}` }],
+            isError: true,
+          }
+      }
+    } catch (err) {
+      return {
+        content: [
+          { type: 'text' as const, text: err instanceof Error ? err.message : String(err) },
+        ],
+        isError: true,
+      }
     }
   })
 

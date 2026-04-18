@@ -1,4 +1,4 @@
-import { readdir, readFile, realpath, stat } from 'node:fs/promises'
+import { open, readdir, readFile, realpath, stat } from 'node:fs/promises'
 import { dirname, relative, resolve, extname } from 'node:path'
 import { extractMarkdownReferences } from './markdown-links.js'
 
@@ -208,8 +208,17 @@ async function isBinaryFile(filePath: string): Promise<boolean> {
     return true
   }
 
-  const buffer = await readFile(filePath)
-  return buffer.includes(0)
+  // Read only the first 8KB — standard heuristic for binary detection.
+  // Avoids loading entire large files into memory.
+  const PROBE_SIZE = 8192
+  const fh = await open(filePath, 'r')
+  try {
+    const buf = Buffer.alloc(PROBE_SIZE)
+    const { bytesRead } = await fh.read(buf, 0, PROBE_SIZE, 0)
+    return buf.subarray(0, bytesRead).includes(0)
+  } finally {
+    await fh.close()
+  }
 }
 
 function isMarkdownFile(filePath: string): boolean {

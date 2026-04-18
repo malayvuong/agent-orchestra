@@ -56,9 +56,9 @@ describe('plan-review — superpower definition', () => {
     expect(sp.protocol).toBe('single_challenger')
   })
 
-  it('references the plan-review skillset', () => {
+  it('does not reference a skillset (uses skillIds only)', () => {
     const sp = BUILTIN_SUPERPOWERS.find((s) => s.id === 'plan-review')!
-    expect(sp.skillSetIds).toContain('plan-review')
+    expect(sp.skillSetIds).toBeUndefined()
   })
 
   it('references all 5 plan-review skill IDs', () => {
@@ -170,13 +170,13 @@ describe('plan-review — skill validation', () => {
     }
   })
 
-  it('resolves skillset ID when loaded', () => {
+  it('resolves skillset IDs as empty array when not configured', () => {
     const resolver = createResolver({
       loadedSkillIds: PLAN_REVIEW_SKILL_IDS,
-      loadedSkillSetIds: ['plan-review'],
+      loadedSkillSetIds: [],
     })
     const result = resolver.resolve('plan-review')
-    expect(result.resolvedSkillSetIds).toContain('plan-review')
+    expect(result.resolvedSkillSetIds).toEqual([])
   })
 
   it('warns when skill IDs are not loaded', () => {
@@ -187,20 +187,10 @@ describe('plan-review — skill validation', () => {
     expect(result.warnings.length).toBeGreaterThanOrEqual(PLAN_REVIEW_SKILL_IDS.length)
   })
 
-  it('warns when skillset ID is not loaded', () => {
-    const resolver = createResolver({ loadedSkillSetIds: [] })
-    const result = resolver.resolve('plan-review')
-
-    const ssWarnings = result.warnings.filter(
-      (w) => w.includes('plan-review') && w.includes('skill set'),
-    )
-    expect(ssWarnings.length).toBeGreaterThanOrEqual(1)
-  })
-
-  it('no warnings when all skills and skillsets are loaded', () => {
+  it('no warnings when all skills are loaded (skillset not needed)', () => {
     const resolver = createResolver({
       loadedSkillIds: PLAN_REVIEW_SKILL_IDS,
-      loadedSkillSetIds: ['plan-review'],
+      loadedSkillSetIds: [],
     })
     const result = resolver.resolve('plan-review')
 

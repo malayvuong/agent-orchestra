@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 import type { Job, JobStatus } from '../types/job.js'
 import type { JobStore } from './types.js'
 
@@ -41,17 +41,51 @@ export class FileJobStore implements JobStore {
     }
   }
 
-  /** Update a job's status and updatedAt timestamp. */
-  async updateStatus(jobId: string, status: JobStatus): Promise<Job> {
-    const job = await this.load(jobId)
-    if (!job) {
-      throw new Error(`Job not found: ${jobId}`)
-    }
+  /** Valid status transitions — prevents illegal state changes. */
+  private static readonly VALID_TRANSITIONS: Record<string, string[]> = {
+    draft: ['running', 'cancelled'],
+    running: ['awaiting_decision', 'failed', 'cancelled'],
+    awaiting_decision: ['running', 'completed', 'cancelled'],
+    failed: ['running'], // allow retry
+    cancelled: [],
+    completed: [],
+  }
 
-    job.status = status
-    job.updatedAt = this.nextTimestamp(job.updatedAt)
-    await this.save(job)
-    return job
+  /**
+   * Update a job's status and updatedAt timestamp.
+   * Uses optimistic concurrency: reads, validates transition, writes with
+   * updatedAt guard. Retries once on conflict.
+   */
+  async updateStatus(jobId: string, status: JobStatus): Promise<Job> {
+    const maxAttempts = 2
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      const job = await this.load(jobId)
+      if (!job) {
+        throw new Error(`Job not found: ${jobId}`)
+      }
+
+      // Validate state transition
+      const allowed = FileJobStore.VALID_TRANSITIONS[job.status]
+      if (allowed && !allowed.includes(status)) {
+        throw new Error(`Invalid status transition: ${job.status} → ${status} for job ${jobId}`)
+      }
+
+      const previousUpdatedAt = job.updatedAt
+      job.status = status
+      job.updatedAt = this.nextTimestamp(job.updatedAt)
+
+      // Optimistic concurrency: re-read and check updatedAt before writing
+      const current = await this.load(jobId)
+      if (current && current.updatedAt !== previousUpdatedAt) {
+        // Conflict — another write happened; retry
+        if (attempt < maxAttempts - 1) continue
+        throw new Error(`Concurrent update conflict for job ${jobId}`)
+      }
+
+      await this.save(job)
+      return job
+    }
+    throw new Error(`Failed to update job ${jobId} after ${maxAttempts} attempts`)
   }
 
   /** List all jobs by scanning the jobs directory. */
@@ -84,9 +118,17 @@ export class FileJobStore implements JobStore {
     await writeFile(filePath, JSON.stringify(job, null, 2), 'utf-8')
   }
 
-  /** Get the directory path for a job. */
+  /** Get the directory path for a job. Validates jobId to prevent path traversal. */
   private jobDir(jobId: string): string {
-    return join(this.jobsDir, jobId)
+    // Reject path traversal characters outright
+    if (jobId.includes('/') || jobId.includes('\\') || jobId.includes('..')) {
+      throw new Error(`Invalid job ID: ${jobId}`)
+    }
+    const dir = resolve(this.jobsDir, jobId)
+    if (!dir.startsWith(this.jobsDir)) {
+      throw new Error(`Job ID resolves outside jobs directory: ${jobId}`)
+    }
+    return dir
   }
 
   /** Get the file path for a job's JSON file. */

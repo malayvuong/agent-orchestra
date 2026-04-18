@@ -76,9 +76,11 @@ export class PolicyEngine {
         }
       }
 
-      // Rule with scope: check if any requested scope matches any rule scope
+      // Rule with scope: check if any requested scope matches any rule scope.
+      // An empty requested scope MUST NOT match a scoped rule — otherwise a
+      // skill that omits scope declarations would bypass scope constraints.
       const scopeMatches =
-        scope.length === 0 ||
+        scope.length > 0 &&
         scope.some((reqScope) =>
           rule.scope!.some((ruleScope) => matchScope(reqScope, ruleScope, capability)),
         )
