@@ -3,7 +3,7 @@
   "private": true,
   "license": "MIT",
   "type": "module",
-  "version": "2026.4.4",
+  "version": "2026.5.1",
   "packageManager": "pnpm@9.15.4",
   "engines": {
     "node": ">=20.0.0"
@@ -32,19 +32,27 @@
       "prettier --write"
     ]
   },
+  "pnpm": {
+    "overrides": {
+      "picomatch": "^4.0.4",
+      "tinyglobby": "^0.2.16",
+      "vite": "^8.0.11"
+    }
+  },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@types/node": "^25.5.0",
-    "@vitest/coverage-v8": "^4.1.0",
-    "eslint": "^10.1.0",
+    "@types/node": "^25.6.2",
+    "@vitest/coverage-v8": "^4.1.5",
+    "eslint": "^10.3.0",
     "eslint-config-prettier": "^10.1.8",
     "husky": "^9.1.7",
-    "lint-staged": "^16.4.0",
-    "prettier": "^3.8.1",
+    "lint-staged": "^17.0.4",
+    "prettier": "^3.8.3",
     "tsup": "^8.5.1",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
-    "typescript-eslint": "^8.57.1",
-    "vitest": "^4.1.0"
+    "typescript-eslint": "^8.59.2",
+    "vite": "^8.0.11",
+    "vitest": "^4.1.5"
   }
 }

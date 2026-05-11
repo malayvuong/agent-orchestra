@@ -16,14 +16,17 @@ export class Scheduler {
   private readonly jobs = new Map<string, AutomationJobDefinition>()
   private readonly timers = new Map<string, ReturnType<typeof setTimeout>>()
   private readonly runAutomation: (job: AutomationJobDefinition) => Promise<void>
+  private readonly onJobUpdated?: (job: AutomationJobDefinition) => Promise<void> | void
   private readonly config: SchedulerConfig
 
   constructor(
     config: SchedulerConfig,
     runAutomation: (job: AutomationJobDefinition) => Promise<void>,
+    onJobUpdated?: (job: AutomationJobDefinition) => Promise<void> | void,
   ) {
     this.config = config
     this.runAutomation = runAutomation
+    this.onJobUpdated = onJobUpdated
   }
 
   /**
@@ -82,6 +85,8 @@ export class Scheduler {
         job.lastRunAt = Date.now()
         job.lastRunStatus = 'failed'
       }
+
+      await this.onJobUpdated?.(job)
 
       // Re-schedule for the next interval
       const currentJob = this.jobs.get(job.id)

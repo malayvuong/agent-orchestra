@@ -1,5 +1,4 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
-import { execSync } from 'node:child_process'
 import { join, dirname } from 'node:path'
 import { unlink } from 'node:fs/promises'
 import {
@@ -10,16 +9,15 @@ import {
   FileSessionStore,
   FileTranscriptStore,
   FileAutomationStore,
-  AutomationRunner,
   loadSuperpowerCatalog,
   listProjects,
   registerProject,
   unregisterProject,
   touchProject,
 } from '@malayvuong/agent-orchestra-core'
-import type { StepExecutor, WorkflowStep } from '@malayvuong/agent-orchestra-core'
 import { AGENT_ORCHESTRA_VERSION } from '@malayvuong/agent-orchestra-shared'
 import { serveDashboard } from './dashboard.js'
+import { ServerAutomationRuntime } from './automation-runtime.js'
 
 const PORT = Number(process.env.PORT ?? 3100)
 const STORAGE_DIR = process.env.STORAGE_DIR ?? join(process.cwd(), '.agent-orchestra')
@@ -33,6 +31,12 @@ const taskStore = new FileTaskStore(STORAGE_DIR)
 const sessionStore = new FileSessionStore(STORAGE_DIR)
 const transcriptStore = new FileTranscriptStore(STORAGE_DIR)
 const automationStore = new FileAutomationStore(STORAGE_DIR)
+const automationRuntime = new ServerAutomationRuntime({
+  storageDir: STORAGE_DIR,
+  workspaceDir: dirname(STORAGE_DIR),
+  automationStore,
+  runStore,
+})
 
 // ─── Helpers ───────────────────────────────────────────────────────
 
@@ -246,7 +250,7 @@ const server = createServer(async (req, res) => {
       const body = JSON.parse(await readBody(req))
       if (typeof body.enabled === 'boolean') job.enabled = body.enabled
       if (typeof body.schedule === 'string') job.schedule = body.schedule
-      await automationStore.save(job)
+      await automationRuntime.saveAndSchedule(job)
       return json(res, { job })
     }
     if (path.match(/^\/api\/automation\/[^/]+\/logs$/) && method === 'GET') {
@@ -261,7 +265,7 @@ const server = createServer(async (req, res) => {
       if (!body.id || !body.name || !body.workflow) {
         return json(res, { error: 'id, name, and workflow are required' }, 400)
       }
-      await automationStore.save(body)
+      await automationRuntime.saveAndSchedule(body)
       return json(res, { job: body }, 201)
     }
     if (path.match(/^\/api\/automation\/[^/]+\/run$/) && method === 'POST') {
@@ -269,45 +273,7 @@ const server = createServer(async (req, res) => {
       const job = await automationStore.load(jobId)
       if (!job) return notFound(res)
 
-      const scriptExecutor: StepExecutor = {
-        async execute(step: WorkflowStep, options: { timeout?: number }) {
-          const command = step.config.command as string
-          const timeout = options.timeout ?? step.timeoutMs ?? 30_000
-          const cwd = dirname(STORAGE_DIR)
-          const output = execSync(command, {
-            cwd,
-            timeout,
-            encoding: 'utf-8',
-            stdio: ['pipe', 'pipe', 'pipe'],
-          })
-          return { summary: output.slice(0, 2000) }
-        },
-      }
-
-      const executors = new Map<string, StepExecutor>()
-      executors.set('script', scriptExecutor)
-
-      const runner = new AutomationRunner(runStore, executors)
-      const result = await runner.execute(
-        {
-          source: 'system',
-          sessionId: `automation-${jobId}`,
-          actorId: 'server',
-          trustedMeta: { automationJob: job },
-          requestedMode: 'automation',
-        },
-        {
-          sessionId: `automation-${jobId}`,
-          sessionType: 'cron',
-          owner: 'server',
-          createdAt: Date.now(),
-          lastActivityAt: Date.now(),
-        },
-      )
-
-      job.lastRunAt = Date.now()
-      job.lastRunStatus = result.error ? 'failed' : 'ok'
-      await automationStore.save(job)
+      const result = await automationRuntime.runJob(job)
 
       return json(res, { result })
     }
@@ -315,7 +281,7 @@ const server = createServer(async (req, res) => {
       const jobId = path.split('/')[3]
       const job = await automationStore.load(jobId)
       if (!job) return notFound(res)
-      await automationStore.delete(jobId)
+      await automationRuntime.deleteJob(jobId)
       return json(res, { ok: true })
     }
 
@@ -430,9 +396,13 @@ server.listen(PORT, () => {
   console.log(`Agent Orchestra server listening on http://localhost:${PORT}`)
   console.log(`Storage: ${STORAGE_DIR}`)
   console.log(`Dashboard: http://localhost:${PORT}/`)
+  automationRuntime.start().catch((err) => {
+    console.error('Failed to start automation scheduler:', err)
+  })
 })
 
 process.on('SIGINT', () => {
   console.log('\nShutting down...')
+  automationRuntime.shutdown()
   server.close(() => process.exit(0))
 })

@@ -1,6 +1,7 @@
 # Agent Orchestra -- Project Scan Report
 
 **Generated:** 2026-03-22
+**Updated:** 2026-05-11
 **Scan tool:** Automated project analysis
 **Repository:** `malayvuong/agent-orchestra`
 
@@ -14,26 +15,26 @@ Agent Orchestra is an AI agent orchestration platform for multi-agent code revie
 
 | Metric | Value |
 |--------|-------|
-| TypeScript source files | 154 |
-| Test files | 45 |
-| Source lines (non-test) | 12,571 |
-| Test lines | 12,151 |
-| Total tests | 632 (623 passing, 9 skipped) |
-| Test files passing | 44 of 45 (1 skipped) |
+| TypeScript source files | 279 |
+| Test files | 89 |
+| Source lines (non-test) | 24,701 |
+| Test lines | 21,210 |
+| Total tests | 1173 passing, 9 skipped |
+| Test files passing | 88 of 89 (1 skipped) |
 | Packages (workspace) | 7 (4 library packages + 2 apps + 1 root) |
 | Resolved dependencies | 296 |
 | Commits | 16 |
-| Build status | Passing (all packages) |
-| Lint status | Clean (zero warnings) |
+| Build status | Passing on Node 20.20.2 and 22.22.2 |
+| Lint status | Clean on Node 20.20.2 and 22.22.2 |
 | Known vulnerabilities | 0 |
 | Project size (source) | ~6 MB (126 MB with node_modules) |
 | License | MIT |
-| Node.js | >= 20.0.0 |
+| Node.js | >= 20.0.0 (verified on 20.20.2, 22.22.2, local 25.9.0) |
 | Package manager | pnpm 9.15.4 |
-| Test runner | Vitest 4.1.0 |
+| Test runner | Vitest 4.1.5 |
 | Build tool | tsup 8.5.1 |
 
-**Current status:** All core functionality is implemented and tested. The project release line now uses CalVer (`v2026.3.1`). All tests pass, the build is clean, and lint reports zero issues.
+**Current status:** Core review, skills, automation, dashboard, and server runtime paths are implemented and tested. The project release line now uses CalVer (`v2026.5.1`). Format check, dependency audit, lint, typecheck, build, tests, and server smoke checks pass locally, with the main verification matrix repeated on Node 20 and Node 22.
 
 ---
 
@@ -119,11 +120,11 @@ agent-orchestra/
 - Context: `ContextBuilder`
 - Orchestrator: `Orchestrator`, `DefaultCancellationRegistry`
 
-**@agent-orchestra/providers:**
+**@malayvuong/agent-orchestra-providers:**
 - `OpenAIProvider`, `AnthropicProvider` -- LLM adapters
 - `ProviderError` -- typed error class
 
-**@agent-orchestra/registry:**
+**@malayvuong/agent-orchestra-registry:**
 - `LockfileManager` -- skill lockfile read/write/verify/pin
 - `SkillInstaller` -- install from local path, git URL, or registry
 - `RegistryClient` -- remote registry index fetching, search, update checks
@@ -246,7 +247,7 @@ agent-orchestra/
 | `skills pin <id>` | `--path <path>` | Pin a skill to its current version to prevent overwrite on reinstall |
 | `skills rollback <id>` | `--to <version>` (required), `--path <path>` | Rollback an installed skill to a specific version from the registry |
 | `skills status` | `--path <path>` | Check installed skills for deprecation or yank warnings |
-| `skills validate [path]` | -- | Validate skill definitions (placeholder, not yet implemented) |
+| `skills validate [path]` | -- | Validate one skill directory or all workspace skills; exits non-zero on parser/checksum errors |
 | `policy show` | `--path <path>` | Display active policy configuration and non-overridable system rules |
 | `policy eval` | `--capability <cap>` (required), `--scope <scopes>`, `--path <path>` | Evaluate a capability request against the active policy |
 | `policy init` | `--path <path>` | Create a default `policy.yaml` configuration file |
@@ -265,20 +266,28 @@ The server runs on `http://localhost:3100` (configurable via `PORT` environment 
 | `GET` | `/api/status` | Server status with storage info | `{ version, storage, jobs, node }` |
 | `GET` | `/api/jobs` | List all jobs (summary view) | `{ jobs: [{ id, title, status, protocol, createdAt }] }` |
 | `GET` | `/api/jobs/:id` | Get full job details | Full job JSON |
+| `GET` | `/api/automation` | List automation jobs | `{ jobs }` |
+| `POST` | `/api/automation` | Register an automation job | `{ job }` |
+| `PATCH` | `/api/automation/:id` | Update schedule/enabled state and reschedule | `{ job }` |
+| `POST` | `/api/automation/:id/run` | Run an automation job immediately | `{ result }` |
+| `GET` | `/api/automation/:id/logs` | Show automation run history | `{ runs }` |
+| `DELETE` | `/api/automation/:id` | Delete and unschedule a job | `{ ok: true }` |
 | `OPTIONS` | `*` | CORS preflight | 204 No Content |
 
-All JSON endpoints return `Content-Type: application/json`. CORS is enabled for all origins. The server reads job data from the `.agent-orchestra/` storage directory.
+All JSON endpoints return `Content-Type: application/json`. CORS is enabled for all origins. The server reads job, run, and automation data from the `.agent-orchestra/` storage directory, and registers enabled scheduled automation jobs on startup.
 
 ---
 
 ## 7. Test Coverage Summary
 
-**Overall:** 632 tests across 45 test files. 623 passing, 9 skipped, 0 failing. Execution time: ~1.2 seconds.
+**Current verification (2026-05-11):** `pnpm test` passes on Node 20.20.2 and Node 22.22.2 with 88 test files passed, 1 skipped, 1173 tests passed, 9 skipped, and 0 failing.
 
-### Tests by Area
+The file-level table below is a structural map of the suite. Use the Vitest summary from the current run as the authoritative count.
 
-| Area | Test File | Tests |
-|------|-----------|:-----:|
+### Tests by Area (Structural Map)
+
+| Area | Test File | Historical Count |
+|------|-----------|:----------------:|
 | **Skills -- Core** | | |
 | Skill types (contract tests) | `core/src/types/__tests__/types.test.ts` | 4 |
 | Skill types (skill-specific) | `core/src/skills/__tests__/types.test.ts` | 13 |
@@ -344,16 +353,17 @@ All JSON endpoints return `Content-Type: application/json`. CORS is enabled for 
 
 ### Tests by Package (aggregated)
 
-| Package | Test Files | Approximate Tests |
-|---------|:----------:|:-----------------:|
-| `@agent-orchestra/core` | 31 | 488 |
-| `@agent-orchestra/providers` | 2 | 33 |
-| `@agent-orchestra/registry` | 5 | 54 |
-| `@agent-orchestra/cli` | 2 | 15 |
-| Security tests (root) | 5 | 46 |
-| **Total** | **45** | **636 (grep count)** |
+| Package | Test Files | Approximate Test Declarations |
+|---------|:----------:|:-----------------------------:|
+| `@malayvuong/agent-orchestra-core` | 55 | 816 |
+| `@malayvuong/agent-orchestra-providers` | 4 | 64 |
+| `@malayvuong/agent-orchestra-registry` | 6 | 62 |
+| `@malayvuong/agent-orchestra` | 18 | 186 |
+| `@malayvuong/agent-orchestra-server` | 1 | 3 |
+| Security tests (root) | 5 | 47 |
+| **Total** | **89** | **1178 (grep count)** |
 
-Note: The grep-based count (636) slightly exceeds the Vitest report (632) due to parameterized/conditional test registration. The Vitest-reported number (632) is authoritative.
+Note: The grep-based declaration count differs slightly from the Vitest report due to parameterized and conditional test registration. The Vitest-reported number is authoritative.
 
 ---
 
@@ -424,39 +434,42 @@ The environment variable sanitizer filters out sensitive keys before passing env
 ### Direct Dependencies by Package
 
 **Root (devDependencies only):**
-- `@eslint/js` ^10.0.1, `eslint` ^10.1.0, `eslint-config-prettier` ^10.1.8
-- `typescript` ^5.9.3, `typescript-eslint` ^8.57.1
-- `vitest` ^4.1.0, `@vitest/coverage-v8` ^4.1.0
+- `@eslint/js` ^10.0.1, `eslint` ^10.3.0, `eslint-config-prettier` ^10.1.8
+- `typescript` ^5.9.3, `typescript-eslint` ^8.59.2
+- `vitest` ^4.1.5, `@vitest/coverage-v8` ^4.1.5
 - `tsup` ^8.5.1, `tsx` ^4.21.0
-- `prettier` ^3.8.1
-- `husky` ^9.1.7, `lint-staged` ^16.4.0
-- `@types/node` ^25.5.0
+- `prettier` ^3.8.3
+- `husky` ^9.1.7, `lint-staged` ^17.0.4
+- `vite` ^8.0.11
+- `@types/node` ^25.6.2
 
-**@agent-orchestra/shared:** (no external dependencies)
+**@malayvuong/agent-orchestra-shared:** (no external dependencies)
 
-**@agent-orchestra/core:**
-- `@agent-orchestra/shared` (workspace)
-- `yaml` ^2.8.2
+**@malayvuong/agent-orchestra-core:**
+- `@malayvuong/agent-orchestra-shared` (workspace)
+- `yaml` ^2.8.4
 
-**@agent-orchestra/providers:**
-- `@agent-orchestra/core` (workspace)
-- `@agent-orchestra/shared` (workspace)
+**@malayvuong/agent-orchestra-providers:**
+- `@malayvuong/agent-orchestra-core` (workspace)
+- `@malayvuong/agent-orchestra-shared` (workspace)
 
-**@agent-orchestra/registry:**
-- `@agent-orchestra/core` (workspace)
-- `@agent-orchestra/shared` (workspace)
-- `yaml` ^2.8.2
+**@malayvuong/agent-orchestra-registry:**
+- `@malayvuong/agent-orchestra-core` (workspace)
+- `@malayvuong/agent-orchestra-shared` (workspace)
+- `yaml` ^2.8.4
 
-**@agent-orchestra/cli:**
-- `@agent-orchestra/core` (workspace)
-- `@agent-orchestra/providers` (workspace)
-- `@agent-orchestra/registry` (workspace)
-- `@agent-orchestra/shared` (workspace)
+**@malayvuong/agent-orchestra:**
+- `@malayvuong/agent-orchestra-core` (workspace)
+- `@malayvuong/agent-orchestra-providers` (workspace)
+- `@malayvuong/agent-orchestra-registry` (workspace)
+- `@malayvuong/agent-orchestra-shared` (workspace)
 - `commander` ^13.1.0
+- `@modelcontextprotocol/sdk` ^1.29.0
+- `yaml` ^2.8.4
 
-**@agent-orchestra/server:**
-- `@agent-orchestra/core` (workspace)
-- `@agent-orchestra/shared` (workspace)
+**@malayvuong/agent-orchestra-server:**
+- `@malayvuong/agent-orchestra-core` (workspace)
+- `@malayvuong/agent-orchestra-shared` (workspace)
 
 ### Dependency Summary
 
@@ -475,7 +488,7 @@ The project maintains a minimal external dependency footprint. LLM provider adap
 
 1. **Anthropic provider is basic.** The Anthropic adapter sends requests via `fetch` but does not support streaming responses. It maps the Claude API response to the internal `ProviderOutput` type but does not handle `thinking` blocks, tool use, or multi-turn conversations.
 
-2. **Web dashboard not implemented.** The server package exposes JSON API endpoints only. The landing page notes "Web dashboard coming in a future release." There is no frontend application.
+2. **Dashboard is intentionally lightweight.** The server ships a single-file HTML dashboard for jobs, sessions, projects, and automation. It is not a full SPA frontend yet.
 
 3. **No real-time streaming for CLI `run` output.** The `run` command waits for each protocol round to complete before printing results. Streaming LLM token output to the terminal is not yet implemented.
 
@@ -485,7 +498,7 @@ The project maintains a minimal external dependency footprint. LLM provider adap
 
 6. **Only `single_challenger` protocol implemented.** The spec defines `reviewer_wave` and `reviewer_wave_with_final_check` protocols for 3+ agent topologies. Only the 2-agent `single_challenger` protocol is currently implemented.
 
-7. **`skills validate` command is a placeholder.** The CLI registers the command but prints "Not yet implemented" when invoked.
+7. **Automation schedules are interval-only.** The scheduler accepts simple intervals such as `every 5m`, `every 1h`, and `every 1d`. Cron expressions are not supported yet.
 
 8. **Release process now uses CalVer.** Package and skill release surfaces use `YYYY.M.PATCH` (for example `2026.3.1`), so any older SemVer-based examples or registry entries need manual migration rather than implicit compatibility handling.
 
@@ -495,7 +508,7 @@ The project maintains a minimal external dependency footprint. LLM provider adap
 
 ### Immediate (pre-release)
 
-1. **Push repository to GitHub and configure CI.** The GitHub Actions workflow scaffold exists in the codebase. Deploy it with the standard matrix (Node 20/22, lint, test, build, typecheck).
+1. **Verify GitHub branch protections and release secrets.** CI now runs the Node 20/22 matrix with lint, typecheck, build, test, format check, and moderate-level dependency audit. Confirm the hosted repository enforces the workflow before release.
 
 2. **Test with real API keys.** Run `agent-orchestra run` against actual OpenAI (`OPENAI_API_KEY`) and Anthropic (`ANTHROPIC_API_KEY`) endpoints to validate end-to-end provider behavior beyond unit test mocks.
 
@@ -507,15 +520,15 @@ The project maintains a minimal external dependency footprint. LLM provider adap
 
 5. **Add streaming support.** Implement SSE or chunked streaming for both the OpenAI provider adapter and CLI `run` output to improve the user experience on long-running reviews.
 
-6. **Build the web dashboard.** The server already provides the API layer. A React/Vue/Svelte frontend consuming `/api/jobs` and `/api/jobs/:id` would provide visual job inspection and finding review.
+6. **Harden the dashboard UX.** The built-in dashboard covers jobs, sessions, projects, and automation. A future React/Vue/Svelte frontend could add richer filtering, streaming updates, and finding review flows.
 
 ### Medium-term
 
-7. **Publish to npm.** Configure npm publishing for `@agent-orchestra/cli`, `@agent-orchestra/core`, and sibling packages so users can install globally via `npm install -g @agent-orchestra/cli`.
+7. **Publish to npm.** Configure npm publishing for `@malayvuong/agent-orchestra`, `@malayvuong/agent-orchestra-core`, and sibling packages so users can install globally via `npm install -g @malayvuong/agent-orchestra`.
 
 8. **Add more provider adapters.** Candidates include: Google Gemini, local Ollama, AWS Bedrock, and Azure OpenAI (distinct from vanilla OpenAI for auth/endpoint differences).
 
-9. **Implement `skills validate` command.** Parse and validate SKILL.md files against the schema, report errors, and optionally auto-fix common issues.
+9. **Expand `skills validate` diagnostics.** The command now validates skill definitions. Next improvements are schema-specific error messages and optional auto-fixes for common metadata issues.
 
 10. **Add code coverage reporting.** The `@vitest/coverage-v8` package is already installed as a devDependency. Configure coverage thresholds and integrate with CI reporting.
 

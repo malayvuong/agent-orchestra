@@ -1,6 +1,6 @@
 {
   "name": "@malayvuong/agent-orchestra-registry",
-  "version": "2026.4.4",
+  "version": "2026.5.1",
   "description": "Skill registry, lockfile, and installation management for Agent Orchestra",
   "license": "MIT",
   "type": "module",
@@ -39,6 +39,6 @@
   "dependencies": {
     "@malayvuong/agent-orchestra-core": "workspace:*",
     "@malayvuong/agent-orchestra-shared": "workspace:*",
-    "yaml": "^2.8.2"
+    "yaml": "^2.8.4"
   }
 }

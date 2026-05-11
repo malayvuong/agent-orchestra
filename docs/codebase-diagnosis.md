@@ -247,7 +247,7 @@ Arrows read "X imports from Y". Only production imports (not test files).
 | Consumer | Imports from |
 |---|---|
 | `apps/cli` | `core` (Orchestrator, storage, skills, superpowers, projects, events, context, output), `providers`, `shared` |
-| `apps/server` | `core` (storage implementations, AutomationRunner, projects, superpowers catalog), `shared` |
+| `apps/server` | `core` (storage implementations, ServerAutomationRuntime wrapper around AutomationRunner/Scheduler, projects, superpowers catalog), `shared` |
 | `packages/core` | `shared` (version, errors) |
 | `packages/providers` | `shared` (default models) |
 | `packages/registry` | `shared` (calver) |
@@ -269,7 +269,7 @@ Arrows read "X imports from Y". Only production imports (not test files).
 | `skills/` | SkillLoader, SkillParser, SkillMatcher, SkillInjector, PolicyEngine, SkillExecutor, etc. (50+) | Yes (cli skills/policy commands) | context, superpowers |
 | `superpowers/` | loadSuperpowerCatalog, SuperpowerResolver | Yes (cli run/superpowers commands, server) | No |
 | `guard/` | ExecutionGuard, TaskClassifier, collectEvidence | No | runner, runtime |
-| `runner/` | InteractiveRunner, AutomationRunner, Scheduler | Yes (server uses AutomationRunner) | runtime |
+| `runner/` | InteractiveRunner, AutomationRunner, Scheduler | Yes (server automation runtime uses AutomationRunner and Scheduler) | runtime |
 | `runtime/` | Runtime, IntentClassifier | No | No |
 | `tools/` | ToolRegistry | No | No |
 | `apply/` | parseApplyOutput | No | protocols |
@@ -476,7 +476,7 @@ The server is a **store-centric REST API** with no orchestration logic:
 | `/api/runs`, `/api/runs/:id` | RunStore | No |
 | `/api/tasks` | TaskStore | No |
 | `/api/sessions` | SessionStore, TranscriptStore | No |
-| `/api/automation` | AutomationStore, RunStore | No (uses AutomationRunner directly) |
+| `/api/automation` | AutomationStore, RunStore | No (uses ServerAutomationRuntime; core Runtime still not used) |
 | `/api/projects` | project-registry | No |
 | `/api/superpowers` | superpower catalog | No |
 | `/` (dashboard) | N/A (HTML SPA) | No |
@@ -487,7 +487,7 @@ No EventBus. No WebSocket/SSE. No guard enforcement. No transcript logging.
 
 **Dual-mode** (serving both debate and runtime as parallel systems) is the current de facto state, and it creates confusion:
 - Two store systems that never connect
-- Automation wired directly (bypassing Runtime)
+- Automation uses a server runtime wrapper, but still bypasses the core Runtime dispatcher
 - No session lifecycle management
 - Dashboard shows disconnected data from two worlds
 
@@ -510,5 +510,5 @@ No EventBus. No WebSocket/SSE. No guard enforcement. No transcript logging.
 | Breaking server API contract | Low | HTTP endpoints stay the same; only internal routing changes |
 | Debate job creation flow | Medium | DebateRunner must accept the same params as current `ao run` wiring |
 | Dashboard compatibility | Low | Dashboard reads from same stores; API responses unchanged |
-| AutomationRunner double-wiring | Low | Remove direct instantiation in server; let Runtime dispatch |
+| Automation runtime wiring | Low | Keep ServerAutomationRuntime as the server adapter until core Runtime dispatch owns automation |
 | Session creation overhead | Low | Minimal — one JSON file write per session |

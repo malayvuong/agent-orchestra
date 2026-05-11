@@ -271,6 +271,10 @@ describe('superpowers show command', () => {
     const { restore } = captureConsole()
     const program = createProgram()
     program.exitOverride()
+    const errors: string[] = []
+    program.configureOutput({
+      writeErr: (str) => errors.push(str),
+    })
 
     // Commander treats `show` with no argument as a missing required arg
     await expect(
@@ -278,6 +282,7 @@ describe('superpowers show command', () => {
     ).rejects.toThrow()
 
     restore()
+    expect(errors.join('')).toContain("missing required argument 'id'")
   })
 })
 

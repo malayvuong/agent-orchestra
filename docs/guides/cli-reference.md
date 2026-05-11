@@ -63,6 +63,7 @@ All `ao` commands at a glance.
 |---------|-------------|
 | `ao skills list` | List available skills |
 | `ao skills show <id>` | Show skill details |
+| `ao skills validate [path]` | Validate one skill directory or all workspace skills |
 | `ao audit list` | Show tool invocation audit log |
 | `ao policy show` | Show active policy |
 | `ao superpowers list` | List available superpowers |

@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [2026.5.1] - 2026-05-11
+
 ### Added
 
 **Core Engine**
@@ -64,6 +66,7 @@ All notable changes to this project will be documented in this file.
 **CLI**
 - `run` command: multi-agent code review with --target, --provider, --model, --lens, --brief
 - `job list` and `job show` commands
+- `skills validate [path]` command for validating one skill directory or workspace skills
 - `policy show`, `policy eval`, `policy init` commands
 - `audit` command for tool invocation log queries
 - Global error handling with user-friendly messages
@@ -75,13 +78,15 @@ All notable changes to this project will be documented in this file.
 - GET /api/status — server status (version, storage, job count)
 - GET /api/jobs — list all jobs
 - GET /api/jobs/:id — get job details
+- Automation runtime wiring for scheduled jobs, manual runs, logs, enable/disable, and delete
+- Dashboard-backed automation job creation with interval schedules such as `every 1h`
 - CORS headers for dashboard integration
 
 **Infrastructure**
 - pnpm monorepo with 6 packages (core, providers, registry, shared, cli, server)
 - TypeScript strict mode with consistent-type-imports
-- vitest test framework (623+ tests)
+- vitest test framework (1173+ passing tests)
 - tsup build for all packages
 - ESLint + Prettier + husky pre-commit hooks
-- GitHub Actions CI (Node 20 + 22) and release workflow
+- GitHub Actions CI (Node 20 + 22), release workflow, format check, and moderate-level dependency audit
 - CONTRIBUTING.md, SECURITY.md, decision log (15 ADRs)

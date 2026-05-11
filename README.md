@@ -39,9 +39,12 @@ ao job show <job-id>
 
 ```bash
 ao automation add ./jobs/nightly.json     # register a job
+ao automation enable nightly              # enable scheduled execution
 ao automation run nightly                 # run immediately
 ao automation logs nightly                # see run history
 ```
+
+Scheduled jobs run while the daemon/server is running. Schedules use simple intervals like `every 5m`, `every 1h`, or `every 1d`; cron expressions are not supported yet.
 
 ## Dashboard
 
@@ -71,6 +74,20 @@ Ready-to-use review presets:
 | `security-review` | code security, OWASP |
 | `test-generation` | missing tests and edge cases |
 | `dependency-audit` | package risk |
+
+## Validate skills
+
+Validate one skill directory:
+
+```bash
+ao skills validate <skill-directory>
+```
+
+Validate all skills discoverable from a workspace:
+
+```bash
+ao skills validate .
+```
 
 ## Providers
 
@@ -128,6 +145,25 @@ ao --help
 This creates a symlink in the npm global bin directory so `ao` resolves to the local checkout.
 
 Remove the local link later with `pnpm unlink:ao`.
+
+Before pushing changes, run the same local checks covered by CI:
+
+```bash
+pnpm format:check
+pnpm lint
+pnpm typecheck
+pnpm build
+pnpm test
+pnpm audit --audit-level moderate
+```
+
+CI verifies the main matrix on Node.js 20 and 22.
+
+Run the dashboard/API server from this checkout:
+
+```bash
+pnpm dev:server
+```
 
 ## Links
 

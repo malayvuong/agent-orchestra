@@ -138,6 +138,30 @@ describe('Scheduler', () => {
     const listed = scheduler.listJobs().find((j) => j.id === 'j1')
     expect(listed!.lastRunStatus).toBe('failed')
   })
+
+  it('should notify when scheduled job status changes', async () => {
+    const updates: AutomationJobDefinition[] = []
+    scheduler.shutdown()
+    scheduler = new Scheduler(
+      { storageDir: '/tmp/ao-test-scheduler' },
+      async (job) => {
+        runCalls.push(job)
+      },
+      async (job) => {
+        updates.push({ ...job })
+      },
+    )
+
+    const job = makeJob({ id: 'j1', schedule: 'every 5m', enabled: true })
+    scheduler.register(job)
+
+    await vi.advanceTimersByTimeAsync(5 * 60 * 1000)
+
+    expect(updates).toHaveLength(1)
+    expect(updates[0].id).toBe('j1')
+    expect(updates[0].lastRunStatus).toBe('ok')
+    expect(updates[0].lastRunAt).toBeDefined()
+  })
 })
 
 describe('calculateNextRunMs', () => {

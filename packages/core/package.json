@@ -1,6 +1,6 @@
 {
   "name": "@malayvuong/agent-orchestra-core",
-  "version": "2026.4.4",
+  "version": "2026.5.1",
   "description": "Core engine for Agent Orchestra — types, skill system, context builder",
   "license": "MIT",
   "type": "module",
@@ -46,6 +46,6 @@
   },
   "dependencies": {
     "@malayvuong/agent-orchestra-shared": "workspace:*",
-    "yaml": "^2.8.2"
+    "yaml": "^2.8.4"
   }
 }

@@ -392,19 +392,56 @@ describe('skills match command', () => {
 })
 
 // ---------------------------------------------------------------------------
-// skills validate (stub)
+// skills validate
 // ---------------------------------------------------------------------------
 
 describe('skills validate command', () => {
-  it('prints not-implemented message', async () => {
+  it('validates workspace skills successfully', async () => {
+    vi.spyOn(SkillLoader.prototype, 'loadFromWorkspace').mockResolvedValue({
+      skills: [
+        makeSkill({ id: 'security-review', version: '1.0.0' }),
+        makeSkill({ id: 'test-generation', version: '1.0.0' }),
+      ],
+      errors: [],
+    })
+
     const { output, restore } = captureConsole()
     const program = createProgram()
     program.exitOverride()
 
-    await program.parseAsync(['node', 'agent-orchestra', 'skills', 'validate'])
+    await program.parseAsync(['node', 'agent-orchestra', 'skills', 'validate', '/workspace'])
 
     restore()
 
-    expect(output.join('\n')).toContain('Not yet implemented')
+    const combined = output.join('\n')
+    expect(combined).toContain('Skill validation passed')
+    expect(combined).toContain('2 skill(s)')
+  })
+
+  it('reports validation errors and exits non-zero', async () => {
+    vi.spyOn(SkillLoader.prototype, 'loadFromWorkspace').mockResolvedValue({
+      skills: [],
+      errors: [{ path: '/workspace/.agent-orchestra/skills/bad', error: 'Missing name' }],
+    })
+
+    const processExitSpy = vi.spyOn(process, 'exit').mockImplementation((() => {
+      throw new Error('process.exit called')
+    }) as never)
+
+    const { output, restore } = captureConsole()
+    const program = createProgram()
+    program.exitOverride()
+
+    await expect(
+      program.parseAsync(['node', 'agent-orchestra', 'skills', 'validate', '/workspace']),
+    ).rejects.toThrow()
+
+    restore()
+    processExitSpy.mockRestore()
+
+    const combined = output.join('\n')
+    expect(combined).toContain('Skill validation failed')
+    expect(combined).toContain('/workspace/.agent-orchestra/skills/bad')
+    expect(combined).toContain('Missing name')
   })
 })

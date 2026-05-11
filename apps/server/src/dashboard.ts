@@ -758,7 +758,7 @@ window.showAddAutomationForm = function() {
   showInlineForm('autoFormArea', [
     { name: 'id', label: 'Job ID', placeholder: 'unique-job-id' },
     { name: 'name', label: 'Name', placeholder: 'My Automation Job' },
-    { name: 'schedule', label: 'Schedule (cron)', placeholder: '0 */6 * * *' },
+    { name: 'schedule', label: 'Schedule', placeholder: 'every 1h' },
     { name: 'command', label: 'Command', placeholder: 'npm run build' },
   ], async function(data) {
     var payload = {

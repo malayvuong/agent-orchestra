@@ -1,6 +1,6 @@
 import type { Command } from 'commander'
-import { join } from 'node:path'
-import { cp, rm, mkdir } from 'node:fs/promises'
+import { join, resolve } from 'node:path'
+import { access, cp, rm, mkdir } from 'node:fs/promises'
 import {
   SkillParser,
   SkillLoader,
@@ -210,6 +210,56 @@ async function runSkillsMatch(opts: {
       const triggerDesc = parts.length > 0 ? parts.join(', ') : 'always-on'
       console.log(`  ${skill.id} (triggers: ${triggerDesc} — does not match)`)
     }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Command: skills validate [path]
+// ---------------------------------------------------------------------------
+
+async function runSkillsValidate(inputPath: string | undefined): Promise<void> {
+  const targetPath = resolve(inputPath ?? process.cwd())
+  const loader = createLoader()
+
+  const directSkillPath = join(targetPath, 'SKILL.md')
+  try {
+    await access(directSkillPath)
+    const result = await loader.loadFromDirectory(targetPath)
+    if ('type' in result) {
+      console.error(`Skill validation failed: 1 error(s)`)
+      console.error(`  ${result.path}: ${result.message}`)
+      throw new Error('Skill validation failed')
+    }
+
+    console.log(`Skill validation passed: 1 skill(s)`)
+    console.log(`  ${result.id} v${result.version}`)
+    return
+  } catch (err) {
+    if (err instanceof Error && err.message === 'Skill validation failed') {
+      throw err
+    }
+  }
+
+  const result = await loader.loadFromWorkspace(targetPath)
+  const checksumFailures = result.checksumFailures ?? []
+  const errorCount = result.errors.length + checksumFailures.length
+
+  if (errorCount > 0) {
+    console.error(`Skill validation failed: ${errorCount} error(s)`)
+    for (const error of result.errors) {
+      console.error(`  ${error.path}: ${error.error}`)
+    }
+    for (const failure of checksumFailures) {
+      console.error(
+        `  ${failure.skillId}: checksum mismatch expected=${failure.expected} actual=${failure.actual}`,
+      )
+    }
+    throw new Error('Skill validation failed')
+  }
+
+  console.log(`Skill validation passed: ${result.skills.length} skill(s)`)
+  for (const skill of result.skills) {
+    console.log(`  ${skill.id} v${skill.version}`)
   }
 }
 
@@ -702,7 +752,5 @@ export function registerSkillsCommand(program: Command): void {
   skills
     .command('validate [path]')
     .description('Validate skill definitions in a directory')
-    .action((_path?: string) => {
-      console.log('Not yet implemented — coming in a future release.')
-    })
+    .action(handleErrors(runSkillsValidate))
 }

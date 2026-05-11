@@ -1,6 +1,6 @@
 # Agent Orchestra — Project Document
 
-> Version: 2026.4.4 | Last updated: 2026-04-03
+> Version: 2026.5.1 | Last updated: 2026-05-11
 
 ---
 
@@ -303,7 +303,7 @@ ao automation logs <jobId>      # Show run history
 
 ### Scheduling
 
-The `Scheduler` class manages `setTimeout`-based interval scheduling. Supports `every 5m`, `every 1h`, `every 1d` format.
+The `Scheduler` class manages `setTimeout`-based interval scheduling. It supports `every 5m`, `every 1h`, and `every 1d` style intervals. Cron expressions are not accepted yet.
 
 ---
 

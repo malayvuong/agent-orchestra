@@ -47,13 +47,15 @@ Register it:
 ao automation add ./jobs/nightly-tests.json
 ```
 
+Enabled jobs with a `schedule` are registered by the daemon/server on startup. The scheduler uses simple interval strings such as `every 5m`, `every 1h`, and `every 1d`; cron expressions such as `0 */6 * * *` are not accepted yet. Manual **Run Now** executions use the same runtime path and write the same run records.
+
 ## Job definition fields
 
 | Field | Required | Description |
 |-------|----------|-------------|
 | `id` | yes | Unique identifier |
 | `name` | yes | Display name |
-| `schedule` | no | Interval: `every 5m`, `every 1h`, `every 1d` |
+| `schedule` | no | Simple interval: `every 5m`, `every 1h`, `every 1d` |
 | `trigger` | no | `cron`, `webhook`, or `watch` |
 | `enabled` | yes | Whether the job runs on schedule |
 | `workflow` | yes | Array of steps to execute |
@@ -92,6 +94,8 @@ ao automation enable <job-id>         # Enable scheduling
 ao automation disable <job-id>        # Disable scheduling
 ao automation logs <job-id>           # Show run history
 ```
+
+Use `ao daemon start` to keep scheduled jobs running outside a one-off CLI command.
 
 ## Dashboard
 
