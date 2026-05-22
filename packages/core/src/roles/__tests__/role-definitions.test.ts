@@ -54,4 +54,13 @@ describe('ROLE_DEFINITIONS', () => {
       expect(validFormats).toContain(def.outputContract.format)
     }
   })
+
+  it('encodes role-specific workflow discipline in descriptions', () => {
+    expect(ROLE_DEFINITIONS.architect.description).toContain('trade-offs')
+    expect(ROLE_DEFINITIONS.planner.description).toContain('scale-adaptive')
+    expect(ROLE_DEFINITIONS.builder.description).toContain('acceptance criteria')
+    expect(ROLE_DEFINITIONS.executor.description).toContain('acceptance criteria')
+    expect(ROLE_DEFINITIONS.verifier.description).toContain('re-reads')
+    expect(ROLE_DEFINITIONS.researcher.description).toContain('primary sources')
+  })
 })

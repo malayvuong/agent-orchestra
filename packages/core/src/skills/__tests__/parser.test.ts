@@ -442,6 +442,32 @@ body`
     expect(warnings.some((w) => w.includes('not-a-role'))).toBe(true)
   })
 
+  it('accepts general orchestration roles in triggers.roles', () => {
+    const raw = `---
+name: general-role-skill
+description: Has general role triggers
+triggers:
+  roles:
+    - planner
+    - executor
+    - verifier
+    - researcher
+    - operator
+---
+body`
+    const result = parser.parse('/general-role.skill.md', raw)
+    expect(isParseResult(result)).toBe(true)
+    const { skill, warnings } = result as SkillParseResult
+    expect(skill.triggers?.roles).toEqual([
+      'planner',
+      'executor',
+      'verifier',
+      'researcher',
+      'operator',
+    ])
+    expect(warnings.filter((w) => w.includes('Unknown role value'))).toHaveLength(0)
+  })
+
   it('correctly handles allowed-tools field (known, no warning)', () => {
     const raw = `---\nname: tools-skill\ndescription: Has allowed-tools\nallowed-tools:\n  - fs.read\n---\nbody`
     const result = parser.parse('/tools.skill.md', raw)

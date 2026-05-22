@@ -58,7 +58,7 @@ Skills without a `triggers` section are always-on — they are injected for ever
 
 - `triggers.lenses` — inject when the agent is running with a matching lens (e.g., `security`, `testing`, `performance`)
 - `triggers.keywords` — inject when the review context contains a matching keyword
-- `triggers.roles` — inject only for agents with a matching role (`architect`, `reviewer`, `builder`)
+- `triggers.roles` — inject only for agents with a matching role (`architect`, `reviewer`, `builder`, `planner`, `executor`, `verifier`, `researcher`, `operator`)
 
 ## Quick Example
 

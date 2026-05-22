@@ -105,7 +105,7 @@ An array of lowercase strings. The skill is injected when any keyword appears (c
 
 ### `triggers.roles`
 
-Valid values: `architect`, `reviewer`, `builder`.
+Valid values: `architect`, `reviewer`, `builder`, `planner`, `executor`, `verifier`, `researcher`, `operator`.
 
 The skill is injected only when the agent has a matching role.
 
@@ -138,7 +138,7 @@ The loader enforces these rules at load time:
 - File must begin with `---` frontmatter.
 - `name` and `description` are required.
 - `triggers.lenses` values must be from the valid lens list (unknown values are warned and ignored).
-- `triggers.roles` values must be `architect`, `reviewer`, or `builder`.
+- `triggers.roles` values must be a valid `AgentRole`: `architect`, `reviewer`, `builder`, `planner`, `executor`, `verifier`, `researcher`, or `operator`.
 - The skill ID (derived from the directory name) must match `[a-z0-9-]+`.
 - Potential prompt injection patterns are detected and warned (not rejected).
 

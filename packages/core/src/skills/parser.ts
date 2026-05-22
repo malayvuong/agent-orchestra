@@ -22,7 +22,16 @@ const VALID_LENSES: ReadonlySet<AgentLens> = new Set<AgentLens>([
   'implementation_readiness',
 ])
 
-const VALID_ROLES: ReadonlySet<AgentRole> = new Set<AgentRole>(['architect', 'reviewer', 'builder'])
+const VALID_ROLES: ReadonlySet<AgentRole> = new Set<AgentRole>([
+  'architect',
+  'reviewer',
+  'builder',
+  'planner',
+  'executor',
+  'verifier',
+  'researcher',
+  'operator',
+])
 
 /** Patterns that indicate potential prompt injection in skill content */
 const INJECTION_PATTERNS: ReadonlyArray<{ pattern: RegExp; label: string }> = [

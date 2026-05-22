@@ -22,6 +22,8 @@ triggers:
   roles:
     - architect
     - reviewer
+    - planner
+    - verifier
   keywords:
     - plan
     - phase
@@ -30,7 +32,7 @@ triggers:
     - sequencing
     - ordering`,
       `
-When reviewing an implementation plan, check for sequencing and ordering issues.
+When reviewing or planning implementation work, check for sequencing and ordering issues.
 
 ## Prerequisite Violations
 
@@ -64,6 +66,8 @@ triggers:
   roles:
     - architect
     - reviewer
+    - planner
+    - verifier
   keywords:
     - dependency
     - depends
@@ -71,7 +75,7 @@ triggers:
     - blocking
     - prerequisite`,
       `
-When reviewing an implementation plan, check for dependency issues.
+When reviewing or planning implementation work, check for dependency issues.
 
 ## Hidden Dependencies
 
@@ -106,6 +110,8 @@ triggers:
   roles:
     - architect
     - reviewer
+    - planner
+    - verifier
   keywords:
     - scope
     - mvp
@@ -114,7 +120,7 @@ triggers:
     - feature
     - priority`,
       `
-When reviewing an implementation plan, check for scope discipline issues.
+When reviewing or planning implementation work, check for scope discipline issues.
 
 ## Over-Scoping
 
@@ -147,6 +153,8 @@ triggers:
   roles:
     - architect
     - reviewer
+    - planner
+    - verifier
   keywords:
     - plan
     - implementation
@@ -155,7 +163,7 @@ triggers:
     - actionable
     - execute`,
       `
-When reviewing an implementation plan, assess whether each step is ready for implementation.
+When reviewing or planning implementation work, assess whether each step is ready for implementation.
 
 ## Actionability
 
@@ -189,6 +197,8 @@ triggers:
   roles:
     - architect
     - reviewer
+    - planner
+    - verifier
   keywords:
     - risk
     - assumption
@@ -196,7 +206,7 @@ triggers:
     - rollback
     - rollout`,
       `
-When reviewing an implementation plan, check for risk management issues.
+When reviewing or planning implementation work, check for risk management issues.
 
 ## Unclear Assumptions
 

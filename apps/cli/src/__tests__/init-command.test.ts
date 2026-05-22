@@ -212,6 +212,8 @@ describe('init command — optional files', () => {
     )
 
     expect(sequencingSkill).toContain('name: Sequencing Check')
+    expect(sequencingSkill).toContain('    - planner')
+    expect(sequencingSkill).toContain('    - verifier')
     expect(securitySkill).toContain('name: Security Review')
     expect(builtinSkillsets).toContain('id: plan-review')
     expect(builtinSkillsets).toContain('id: security-review')

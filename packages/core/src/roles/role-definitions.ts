@@ -22,7 +22,8 @@ export const ROLE_DEFINITIONS: Record<string, RoleDefinition> = {
   // Existing debate roles
   architect: {
     role: 'architect',
-    description: 'Analyzes targets, defends design decisions.',
+    description:
+      'Analyzes targets, surfaces trade-offs, and checks implementation readiness before design decisions become work.',
     allowedToolCategories: ['read'],
     canMutateState: false,
     canAccessExternal: false,
@@ -31,7 +32,8 @@ export const ROLE_DEFINITIONS: Record<string, RoleDefinition> = {
   },
   reviewer: {
     role: 'reviewer',
-    description: 'Challenges architect findings through a focused lens.',
+    description:
+      'Challenges findings through a focused lens with scoped, actionable evidence and checklist-style review discipline.',
     allowedToolCategories: ['read'],
     canMutateState: false,
     canAccessExternal: false,
@@ -40,7 +42,8 @@ export const ROLE_DEFINITIONS: Record<string, RoleDefinition> = {
   },
   builder: {
     role: 'builder',
-    description: 'Executes code changes based on accepted findings.',
+    description:
+      'Executes code changes from accepted findings, acceptance criteria, and verification evidence without widening scope.',
     allowedToolCategories: ['read', 'write', 'exec'],
     canMutateState: true,
     canAccessExternal: false,
@@ -50,7 +53,8 @@ export const ROLE_DEFINITIONS: Record<string, RoleDefinition> = {
   // New general roles
   planner: {
     role: 'planner',
-    description: 'Decomposes tasks, decides delegation. No risky actions.',
+    description:
+      'Decomposes tasks with scale-adaptive depth, choosing quick spec, story plan, or full architecture gates. No risky actions.',
     allowedToolCategories: ['read'],
     canMutateState: false,
     canAccessExternal: false,
@@ -59,7 +63,8 @@ export const ROLE_DEFINITIONS: Record<string, RoleDefinition> = {
   },
   executor: {
     role: 'executor',
-    description: 'Runs tools, edits files, executes commands.',
+    description:
+      'Runs tools, edits files, and executes commands against acceptance criteria with story-sized scope control.',
     allowedToolCategories: ['read', 'write', 'exec'],
     canMutateState: true,
     canAccessExternal: false,
@@ -68,7 +73,8 @@ export const ROLE_DEFINITIONS: Record<string, RoleDefinition> = {
   },
   verifier: {
     role: 'verifier',
-    description: 'Checks whether work actually happened. Confirms outputs.',
+    description:
+      'Checks whether work actually happened, re-reads current source snapshots, and confirms outputs with evidence.',
     allowedToolCategories: ['read'],
     canMutateState: false,
     canAccessExternal: false,
@@ -77,7 +83,8 @@ export const ROLE_DEFINITIONS: Record<string, RoleDefinition> = {
   },
   researcher: {
     role: 'researcher',
-    description: 'Fetches docs/web info. Mostly read-only.',
+    description:
+      'Fetches docs and web info from primary sources, summarizes with citations, and avoids copying source prose.',
     allowedToolCategories: ['read', 'external'],
     canMutateState: false,
     canAccessExternal: true,
