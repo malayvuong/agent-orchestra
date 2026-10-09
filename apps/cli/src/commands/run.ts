@@ -1,4 +1,5 @@
 import { Option, type Command } from 'commander'
+import { createJevReviewAssessor } from '@malayvuong/agent-orchestra-providers'
 import { join, resolve } from 'node:path'
 import {
   ContextBuilder,
@@ -334,6 +335,7 @@ async function runCommand(opts: {
     : defaultBrief
 
   const deps: ProtocolExecutionDeps = {
+    reviewAssessor: createJevReviewAssessor(),
     providerExecutor: providerResolution.providerExecutor,
     contextBuilder,
     outputNormalizer,

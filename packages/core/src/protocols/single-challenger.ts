@@ -213,6 +213,8 @@ export class SingleChallengerRunner implements ProtocolRunner {
     // Iterative Debate Loop: response → followup → response → followup → ...
     // -----------------------------------------------------------------------
     let debateRound = 0
+    const reviewAssessments: NonNullable<Round['reviewAssessments']> = []
+    let needsAttention = false
 
     while (roundIndex < totalRoundBudget - terminalReservation) {
       debateRound++
@@ -350,6 +352,56 @@ export class SingleChallengerRunner implements ProtocolRunner {
           'review',
         )
 
+        if (deps.reviewAssessor) {
+          this.checkCancellation(job.id, deps)
+          try {
+            const assessment = await deps.reviewAssessor.assess({
+              previousFindings: reviewerFindings,
+              currentFindings: lastReviewerOutput.findings,
+              architectResponse: responseText,
+              reviewerResponse: lastReviewerOutput.rawText,
+              applySummary: aggregateApplySummary,
+            })
+            this.checkCancellation(job.id, deps)
+            const hasMustFix = lastReviewerOutput.findings.some(
+              (f) => f.actionability === 'must_fix_now',
+            )
+            // shortcut: conservative thresholds; calibrate on labelled review cycles before relaxing.
+            const confident = assessment.confidence >= 0.9
+            const action =
+              confident &&
+              assessment.choice === 'stop' &&
+              assessment.unresolvedRisk <= 0.1 &&
+              !hasMustFix
+                ? 'stop'
+                : confident &&
+                    assessment.choice === 'needs_attention' &&
+                    assessment.unresolvedRisk >= 0.9
+                  ? 'needs_attention'
+                  : confident && assessment.choice === 'continue'
+                    ? 'continue'
+                    : 'fallback'
+            reviewAssessments.push({
+              roundIndex: roundIndex - 1,
+              assessment,
+              action,
+              reason: 'JEV review assessment',
+            })
+            if (action === 'stop' || action === 'needs_attention') {
+              needsAttention = action === 'needs_attention'
+              break
+            }
+            if (action === 'continue') continue
+          } catch {
+            this.checkCancellation(job.id, deps)
+            reviewAssessments.push({
+              roundIndex: roundIndex - 1,
+              action: 'fallback',
+              reason: 'JEV unavailable or invalid; using normal review flow',
+            })
+          }
+        }
+
         // Convergence detection: if reviewer found 0 new findings, stop
         if (lastReviewerOutput.findings.length === 0) {
           // Check rawText for explicit convergence signal
@@ -383,8 +435,11 @@ export class SingleChallengerRunner implements ProtocolRunner {
         findings: synthesisFindings,
         warnings: [],
       },
-      summary: `Converged with ${synthesisFindings.length} findings from ${roundIndex} rounds (${debateRound} debate cycles).`,
+      summary: needsAttention
+        ? `Review needs attention: unresolved issues require human input. ${synthesisFindings.length} findings retained.`
+        : `Converged with ${synthesisFindings.length} findings from ${roundIndex} rounds (${debateRound} debate cycles).`,
       createdAt: new Date().toISOString(),
+      ...(reviewAssessments.length > 0 ? { reviewAssessments } : {}),
     }
 
     await roundStore.save(convergenceRound)

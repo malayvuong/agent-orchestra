@@ -91,6 +91,25 @@ ao skills validate .
 
 ## Providers
 
+### Optional JEV review decisions
+
+Set `TYPESAFE_API_KEY` in the CLI or MCP server process environment to enable JEV
+assessment after each reviewer follow-up in `single_challenger`. Without a key,
+the existing review flow runs unchanged. Environment files are not loaded automatically.
+
+JEV receives reviewer findings, architect/reviewer responses, and the apply summary
+through the external TypeSafe API. Do not enable it for content that must stay local.
+The integration pins `jev-1.13.0`, limits state to 24,000 characters, and times out
+after five seconds. API errors, malformed results, and uncertain assessments fall
+back to the existing flow. There are no automatic retries.
+
+Confident assessments can request another cycle, stop a resolved review, or end a
+stalled debate with a needs-attention summary. JEV cannot stop as resolved while the
+current reviewer still reports a must-fix finding. Round limits and cancellation
+remain authoritative; final checking and user decisions still run. Assessments,
+token usage, latency, and fallback outcomes are saved on the synthesis round as
+`reviewAssessments`. The conservative thresholds need calibration on real reviews.
+
 `ao init` auto-detects available providers:
 
 | Provider | Default model |

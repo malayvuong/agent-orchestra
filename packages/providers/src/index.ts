@@ -15,6 +15,7 @@ export type { DetectedProviders } from './cli/index.js'
 export { getDefaultModelForProvider } from './default-models.js'
 
 export { ProviderRouter } from './router.js'
+export { JevClient, createJevReviewAssessor } from './jev.js'
 
 export type { AgentProvider, ProviderInput } from './types.js'
 export { ProviderError } from './types.js'

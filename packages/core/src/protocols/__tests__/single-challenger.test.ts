@@ -4,7 +4,7 @@ import { DefaultCancellationRegistry } from '../../orchestrator/cancellation.js'
 import { EventBus } from '../../events/event-bus.js'
 import type { DebateEventMap } from '../../events/debate-events.js'
 import type { Job } from '../../types/job.js'
-import type { ProtocolExecutionDeps } from '../../types/orchestrator.js'
+import type { ProtocolExecutionDeps, ReviewAssessment } from '../../types/orchestrator.js'
 import type { ProviderOutput, NormalizationResult, AgentOutput } from '../../types/output.js'
 import type { Round } from '../../types/protocol.js'
 import type { AgentContext } from '../../types/context.js'
@@ -313,6 +313,108 @@ describe('SingleChallengerRunner', () => {
     expect(savedRounds[2].state).toBe('rebuttal')
     expect(savedRounds[3].state).toBe('convergence')
     expect(savedRounds[4].state).toBe('final_check')
+  })
+
+  it.each(['stop', 'continue', 'needs_attention', 'uncertain', 'error'] as const)(
+    'handles JEV %s while preserving final checking and round limits',
+    async (mode) => {
+      const { deps, savedRounds } = makeMockDeps()
+      const assessment: ReviewAssessment = {
+        choice: mode === 'uncertain' || mode === 'error' ? 'stop' : mode,
+        confidence: mode === 'uncertain' ? 0.4 : 0.98,
+        probabilities: { continue: 0.01, stop: 0.98, needs_attention: 0.01 },
+        unresolvedRisk: mode === 'needs_attention' ? 0.98 : 0.01,
+        model: 'jev-1.13.0',
+        inputTokens: 200,
+        latencyMs: 20,
+      }
+      deps.reviewAssessor = {
+        assess:
+          mode === 'error'
+            ? vi.fn().mockRejectedValue(new Error('Provider unavailable'))
+            : vi.fn().mockResolvedValue(assessment),
+      }
+      await runner.execute(makeJob({ maxRounds: 10 }), deps)
+      const synthesis = savedRounds.find((round) => round.state === 'convergence')!
+      expect(synthesis.reviewAssessments?.[0].action).toBe(
+        mode === 'uncertain' || mode === 'error' ? 'fallback' : mode,
+      )
+      expect(savedRounds.at(-1)?.state).toBe('final_check')
+      expect(savedRounds.length).toBeLessThanOrEqual(10)
+      expect(synthesis.reviewAssessments).toHaveLength(
+        mode === 'stop' || mode === 'needs_attention' ? 1 : 3,
+      )
+      if (mode === 'needs_attention') expect(synthesis.summary).toContain('needs attention')
+    },
+  )
+
+  it('cannot stop as resolved when the reviewer still reports a must-fix finding', async () => {
+    const { deps, savedRounds } = makeMockDeps()
+    ;(
+      deps.outputNormalizer as { normalize: ReturnType<typeof vi.fn> }
+    ).normalize.mockImplementation((output: ProviderOutput) =>
+      makeMockNormalizationResult(output.rawText, ['Unresolved security issue']),
+    )
+    deps.reviewAssessor = {
+      assess: vi.fn().mockResolvedValue({
+        choice: 'stop',
+        confidence: 0.99,
+        probabilities: { continue: 0, stop: 1, needs_attention: 0 },
+        unresolvedRisk: 0,
+        model: 'jev-1.13.0',
+        inputTokens: 100,
+        latencyMs: 1,
+      }),
+    }
+    await runner.execute(makeJob({ maxRounds: 10 }), deps)
+    const decisions = savedRounds.find((round) => round.state === 'convergence')!.reviewAssessments!
+    expect(decisions).toHaveLength(3)
+    expect(decisions.every((decision) => decision.action === 'fallback')).toBe(true)
+  })
+
+  it.each(['continue', 'uncertain', 'error', 'disabled'] as const)(
+    'uses JEV %s with the legacy convergence signal',
+    async (mode) => {
+      const { deps, savedRounds } = makeMockDeps()
+      ;(
+        deps.outputNormalizer as { normalize: ReturnType<typeof vi.fn> }
+      ).normalize.mockImplementation(() =>
+        makeMockNormalizationResult('No new findings. Debate converged.', []),
+      )
+      if (mode !== 'disabled') {
+        deps.reviewAssessor = {
+          assess:
+            mode === 'error'
+              ? vi.fn().mockRejectedValue(new Error('Unavailable'))
+              : vi.fn().mockResolvedValue({
+                  choice: 'continue',
+                  confidence: mode === 'uncertain' ? 0.2 : 0.98,
+                  probabilities: { continue: 0.98, stop: 0.01, needs_attention: 0.01 },
+                  unresolvedRisk: 0.5,
+                  model: 'jev-1.13.0',
+                  inputTokens: 100,
+                  latencyMs: 1,
+                }),
+        }
+      }
+      await runner.execute(makeJob({ maxRounds: 10 }), deps)
+      const reviewRounds = savedRounds.filter((round) => round.state === 'review')
+      expect(reviewRounds).toHaveLength(mode === 'continue' ? 4 : 2)
+      const synthesis = savedRounds.find((round) => round.state === 'convergence')!
+      if (mode === 'disabled') expect(synthesis.reviewAssessments).toBeUndefined()
+      expect(savedRounds.at(-1)?.state).toBe('final_check')
+    },
+  )
+
+  it('preserves cancellation when it happens during JEV assessment', async () => {
+    const { deps } = makeMockDeps()
+    deps.reviewAssessor = {
+      assess: vi.fn().mockImplementation(async () => {
+        await deps.cancellationRegistry.cancelJob('job-test-1')
+        throw new Error('JEV interrupted')
+      }),
+    }
+    await expect(runner.execute(makeJob({ maxRounds: 10 }), deps)).rejects.toThrow()
   })
 
   it('should call the provider 4 times (analysis, review, rebuttal, final_check)', async () => {

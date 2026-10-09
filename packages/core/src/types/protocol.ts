@@ -1,12 +1,10 @@
 import type { FindingScopeType } from './finding.js'
 import type { AgentOutput } from './output.js'
+import type { ReviewAssessment } from './orchestrator.js'
 
 /** Spec v1.3 §5.1 */
 export type Protocol =
-  | 'single_challenger'
-  | 'reviewer_wave'
-  | 'reviewer_wave_with_final_check'
-  | 'builder_plus_reviewer'
+  'single_challenger' | 'reviewer_wave' | 'reviewer_wave_with_final_check' | 'builder_plus_reviewer'
 
 /** Spec v1.3 §4.13 */
 export type RoundState =
@@ -77,6 +75,12 @@ export type Round = {
 
   /** Present only on final_check rounds — compares final artifact vs original baseline */
   finalCheckSummary?: FinalCheckSummary
+  reviewAssessments?: Array<{
+    roundIndex: number
+    assessment?: ReviewAssessment
+    action: 'continue' | 'stop' | 'needs_attention' | 'fallback'
+    reason: string
+  }>
 }
 
 /** Spec v1.3 §4.6 */

@@ -6,6 +6,7 @@
  */
 
 import { join, resolve } from 'node:path'
+import { createJevReviewAssessor } from '@malayvuong/agent-orchestra-providers'
 import {
   ContextBuilder,
   DefaultOutputNormalizer,
@@ -303,6 +304,7 @@ export async function handleReviewTarget(
     : defaultBrief
 
   const deps: ProtocolExecutionDeps = {
+    reviewAssessor: createJevReviewAssessor(),
     providerExecutor: providerResolution.providerExecutor,
     contextBuilder,
     outputNormalizer,
