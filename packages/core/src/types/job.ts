@@ -4,13 +4,7 @@ import type { Protocol } from './protocol.js'
 
 /** Spec v1.3 §4.1 */
 export type JobStatus =
-  | 'draft'
-  | 'queued'
-  | 'running'
-  | 'awaiting_decision'
-  | 'completed'
-  | 'cancelled'
-  | 'failed'
+  'draft' | 'queued' | 'running' | 'awaiting_decision' | 'completed' | 'cancelled' | 'failed'
 
 /** Spec v1.3 §4.2 */
 export type JobMode = 'plan' | 'code_review' | 'execution_review'

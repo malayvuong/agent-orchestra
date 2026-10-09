@@ -180,8 +180,7 @@ export class OpenAIProvider implements AgentProvider {
     const rawText = choices[0]?.message?.content ?? ''
 
     const usage = data.usage as
-      | { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number }
-      | undefined
+      { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number } | undefined
 
     const inputTokens = usage?.prompt_tokens
     const outputTokens = usage?.completion_tokens

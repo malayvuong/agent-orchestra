@@ -4,6 +4,24 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [2026.10.1] - 2026-10-09
+
+### Added
+
+- Optional JEV review-cycle assessment for CLI and MCP when `TYPESAFE_API_KEY` is set.
+- Typed continue, stop, and needs-attention decisions with persisted probabilities, token usage, and latency.
+- Normal-flow fallback when JEV is unavailable, uncertain, malformed, or exceeds the evidence limit.
+- Conservative stop guards preserving must-fix findings, round limits, cancellation, and final checking.
+
+### Security
+
+- Refresh compatible dependencies and the lockfile to clear moderate, high, and critical dependency audit findings.
+
+### Changed
+
+- Upgrade the workspace package manager to pnpm 12.10.1 and move overrides to `pnpm-workspace.yaml`.
+
+
 ## [2026.5.1] - 2026-05-11
 
 ### Added

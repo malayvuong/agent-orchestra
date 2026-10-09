@@ -13,12 +13,7 @@
 import type { RunRequest, RunMode } from '../types/runtime.js'
 
 export type Intent =
-  | 'code_review'
-  | 'code_task'
-  | 'question'
-  | 'automation_setup'
-  | 'background_task'
-  | 'verification'
+  'code_review' | 'code_task' | 'question' | 'automation_setup' | 'background_task' | 'verification'
 
 export class IntentClassifier {
   classify(request: RunRequest): Intent {

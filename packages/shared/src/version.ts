@@ -1,1 +1,1 @@
-export const AGENT_ORCHESTRA_VERSION = '2026.5.1'
+export const AGENT_ORCHESTRA_VERSION = '2026.10.1'

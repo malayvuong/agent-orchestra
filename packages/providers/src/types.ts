@@ -38,12 +38,7 @@ export interface AgentProvider {
  * Configuration for provider error responses.
  */
 export type ProviderErrorCode =
-  | 'rate_limit'
-  | 'auth_error'
-  | 'server_error'
-  | 'timeout'
-  | 'network_error'
-  | 'invalid_response'
+  'rate_limit' | 'auth_error' | 'server_error' | 'timeout' | 'network_error' | 'invalid_response'
 
 /**
  * Structured error thrown by provider adapters.

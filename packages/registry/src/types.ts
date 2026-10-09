@@ -37,8 +37,7 @@ export type LockfileVerifyResult = {
 }
 
 export type InstallSource =
-  | { type: 'local'; path: string }
-  | { type: 'git'; url: string; ref?: string }
+  { type: 'local'; path: string } | { type: 'git'; url: string; ref?: string }
 
 export type InstallResult = {
   skillId: string

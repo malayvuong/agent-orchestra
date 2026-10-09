@@ -70,13 +70,11 @@ function makeTranscriptStore(overrides?: Partial<TranscriptStore>): TranscriptSt
 
 function makeGuard(overrides?: Partial<ExecutionGuard>): ExecutionGuard {
   return {
-    validate: vi.fn(
-      (): GuardResult => ({
-        allowed: true,
-        violations: [],
-        suggestedAction: 'pass',
-      }),
-    ),
+    validate: vi.fn((): GuardResult => ({
+      allowed: true,
+      violations: [],
+      suggestedAction: 'pass',
+    })),
     ...overrides,
   } as unknown as ExecutionGuard
 }
@@ -353,20 +351,18 @@ describe('Runtime', () => {
 
   it('should block response when guard returns violations', async () => {
     guard = makeGuard({
-      validate: vi.fn(
-        (): GuardResult => ({
-          allowed: false,
-          violations: [
-            {
-              type: 'promise_without_action',
-              message: 'Promised but did nothing',
-              timestamp: Date.now(),
-              resolution: 'blocked',
-            },
-          ],
-          suggestedAction: 'require_tool_call',
-        }),
-      ),
+      validate: vi.fn((): GuardResult => ({
+        allowed: false,
+        violations: [
+          {
+            type: 'promise_without_action',
+            message: 'Promised but did nothing',
+            timestamp: Date.now(),
+            resolution: 'blocked',
+          },
+        ],
+        suggestedAction: 'require_tool_call',
+      })),
     })
     runtime = new Runtime(sessionStore, runStore, taskStore, transcriptStore, guard)
 

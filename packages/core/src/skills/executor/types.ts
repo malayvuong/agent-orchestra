@@ -59,12 +59,7 @@ export type ToolCall = {
 // ---------------------------------------------------------------------------
 
 export type SkillInvocationStatus =
-  | 'pending'
-  | 'running'
-  | 'completed'
-  | 'failed'
-  | 'awaiting_approval'
-  | 'rejected'
+  'pending' | 'running' | 'completed' | 'failed' | 'awaiting_approval' | 'rejected'
 
 export type SkillInvocation = {
   id: string
